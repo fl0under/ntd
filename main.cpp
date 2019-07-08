@@ -22,6 +22,12 @@ namespace impl {
     wrapper(Ts&&... xs)
       : data{std::forward<Ts>(xs)...} {}
   };
+
+  Sequence operator+ (Sequence lhs, Sequence rhs) {
+    return std::visit( [](auto const &l, auto const &r) -> Sequence {
+        return l + r;
+    }, lhs, rhs);
+  }
 }
 using impl::Sequence;
 using impl::vec;
@@ -58,10 +64,18 @@ void print(Sequence s) {
 // of the smaller container.
 template <typename T, typename V>
 constexpr void normalise(T &a, V &b) {
-  auto gen = [=](const auto& v) {
+  auto gen = [&](const auto& v) {
+    // The iterator version is prone to accessing invalid memory
+    // if other vectors in the parent Sequence are resized after
+    // it is initilised.
+    /*
     static auto it = v.begin();
     it = (it != v.end()) ? it : v.begin();
     return *(it++);
+    */
+    static int i{0};
+    i = ((i+1) != v.size()) ? i : 0;
+    return v.at(i);
   };
 
   auto norm = [&](auto& v, int n) {
@@ -124,13 +138,11 @@ int minimum(T &a, Args... args) {
 
 template <typename T>
 int order(T &v) {
-  std::cout << "any";
   return 0;
 }
 
 template <typename T>
 int order(std::vector<T> &v) {
-  std::cout << "vector";
   return 1 + order(v[0]);
 }
 
@@ -149,7 +161,81 @@ int order(Sequence &v) {
   return n;
 }
 
+void norme(Sequence& a, Sequence& b, int level) {
+  /*
+  std::cout << "[norm] a: "; print(a);
+  std::cout << "       b: "; print(b);
+  std::cout << "       level: " << level << '\n';
+  */
+  int a_size, b_size;
+  if (std::holds_alternative<vec>(a))
+    a_size = std::get<vec>(a).size();
+  else a_size = 1;
+  if (std::holds_alternative<vec>(b))
+     b_size = std::get<vec>(b).size();
+  else b_size = 1;
+  if ((order(a) <= 1) && (order(a) == order(b)) && (a_size == b_size)) {
+    return;
+  } else if ((order(a) > 1) && (order(a) == order(b)) && (a_size == b_size)) {
+    // done at this level
+    for (int i{0}; i < a_size; ++i)
+      norme(std::get<vec>(a).at(i).data, std::get<vec>(b).at(i).data, level-1);
+    return;
+  } else if ((order(a) == order(b)) && (a_size != b_size)) {
+    normalise(std::get<vec>(a),std::get<vec>(b));
+  } else if ((a_size == b_size) && (order(a) != order(b))) {
+    if (order(a) < order(b))
+      a = repeat(a, b_size);
+    else
+      b = repeat(b, a_size);
+  } else {
+    if (order(a) < order(b))
+      a = repeat(a, b_size);
+    else
+      b = repeat(b, a_size);
+  }
+  // move to top
+  int max_order{0};
+  if (order(a) > order(b))
+    max_order = order(a);
+  else
+    max_order = order(b);
+  norme(a, b, max_order);
+}
+
+void norme(Sequence& a, Sequence& b) {
+  int max_order{0};
+  if (order(a) > order(b))
+    max_order = order(a);
+  else
+    max_order = order(b);
+  norme(a, b, max_order);
+}
+
 // Distribute
+
+
+Sequence transpose_distribute(Sequence& a, Sequence& b) {
+  int _order = order(a);
+  Sequence result = vec{};
+
+  if (_order == 1) {
+    std::transform(
+        std::get<vec>(a).begin(), 
+        std::get<vec>(a).end(),
+        std::get<vec>(b).begin(),
+        std::back_inserter(std::get<vec>(result)),
+        [](const auto& a, const auto& b) -> Sequence {
+          return a.data + b.data; } );
+  } else {
+    int a_size = std::get<vec>(a).size();
+    for (int i{0}; i < a_size; ++i) {
+      std::get<vec>(result).push_back(transpose_distribute(
+          std::get<vec>(a).at(i).data, std::get<vec>(b).at(i).data));
+    }
+  }
+  return result;
+}
 
 
 int main() {
@@ -166,52 +252,55 @@ int main() {
   Sequence e = vec{d, c};
   Sequence f = vec{c, c, e, d, c};
   Sequence g = vec{8, 4, 5, 2, 1};
+  Sequence h = vec{8, vec{3, 4}, 1};
 
-  print(c);
-  print(d);
-  print(e);
-  print(f);
-  print(g);
-
-  //std::cout << "order of c: " << order(c) << '\n';
-  //std::cout << "order of var1: " << order(var1) << '\n';
-  std::cout << "order of d: " << order(d) << '\n';
-  std::cout << "order of e: " << order(e) << '\n';
-  std::cout << "order of f: " << order(f) << '\n';
-
-  print(repeat(d, 3));
-
-  std::cout << "Test generator\n";
-  normalise(std::get<vec>(d), std::get<vec>(g));
-  print(d);
-  print(g);
-
-  //std::cout << "vec1: " << vec1 << '\n';
-  //std::cout << "vec2: " << vec2 << '\n';
-  //std::cout << "vec3: " << vec3 << '\n';
-  //std::cout << "vec4: " << vec4 << '\n';
-  //std::cout << "Level of vec3 " << order(vec3) << '\n';
-  //std::cout << "Level of vec4 " << order(vec4) << '\n';
-  //std::cout << "Level of num " << order(num) << '\n';
-
-  //auto res = repeat(vec3, 2);
-  //std::cout << "result: " << res << '\n';
+  //print(c);
+  //print(d);
+  //print(e);
+  //print(f);
+  //print(g);
+  //print(h);
   
-  //normalise(vec5, std::vector<int> {1,0});
-  //normalise(vec4, std::vector<int> {1,0});
+  Sequence result = vec{};
 
+  // Attempt to normalise two sequences
+  Sequence a = d;
+  Sequence b = h;
+  std::cout << "a: "; print(a);
+  std::cout << "b: "; print(b);
+  norme(a,b);
+  std::cout << "normalised a: "; print(a);
+  std::cout << "normalised b: "; print(b);
+  result = transpose_distribute(a,b);
+  std::cout << "result:       "; print(result);
 
-  //std::cout << minimum(vec1, vec3) << '\n';
+  a = vec{1,2,3};
+  b = vec{5, vec{3,4}, vec{7,6}};
+  std::cout << "a: "; print(a);
+  std::cout << "b: "; print(b);
+  norme(a,b);
+  std::cout << "normalised a: "; print(a);
+  std::cout << "normalised b: "; print(b);
+  result = transpose_distribute(a,b);
+  std::cout << "result:       "; print(result);
 
-  //normalise<> (vec1, vec2);
-  //normalise<> (vec3, vec4);
-
-  //std::cout << "vec1: " << vec1 << '\n';
-  //std::cout << "vec2: " << vec2 << '\n';
-  //std::cout << "vec3: " << vec3 << '\n';
-  //std::cout << "vec4: " << vec4 << '\n';
+  a = vec{1,2};
+  b = vec{5, vec{3,4}, vec{7,6}};
+  std::cout << "a: "; print(a);
+  std::cout << "b: "; print(b);
+  norme(a,b);
+  std::cout << "normalised a: "; print(a);
+  std::cout << "normalised b: "; print(b);
+  result = transpose_distribute(a,b);
+  std::cout << "result:       "; print(result);
   
-  //int num1 =1;
-  //int num2=4;
-  //normalise<> (num1,num2);
+  a = vec{1,2,3};
+  b = vec{4,5,6};
+  std::cout << "a: "; print(a);
+  std::cout << "b: "; print(b);
+  norme(a,b);
+  std::cout << "normalised a: "; print(a);
+  std::cout << "normalised b: "; print(b);
+  result = transpose_distribute(a,b);
+  std::cout << "result:       "; print(result);
 }
