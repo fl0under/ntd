@@ -65,14 +65,9 @@ void print(Sequence s) {
 template <typename T, typename V>
 constexpr void normalise(T &a, V &b) {
   auto gen = [&](const auto& v) {
-    // The iterator version is prone to accessing invalid memory
+    // Don't use iterators here as it might access out of bounds memory
     // if other vectors in the parent Sequence are resized after
-    // it is initilised.
-    /*
-    static auto it = v.begin();
-    it = (it != v.end()) ? it : v.begin();
-    return *(it++);
-    */
+    // the iterator is initilised.
     static int i{0};
     i = ((i+1) != v.size()) ? i : 0;
     return v.at(i);
@@ -93,58 +88,18 @@ constexpr void normalise(T &a, V &b) {
 }
 
 
-template <typename T>
-T normalise(T &e, std::vector<int> s) {
-  //auto len = e[s[0]].size();
-  //if (e[1].size() != len)
-  //  repeat(e[1], len);
-  // Check s is consistent
-  // Get the size of elements E_i where i is in s
-  std::transform(s.begin(), s.end(), s.begin(),
-      [&](int i) -> int { return int(e.at(i).size()); });
-  std::cout << s << '\n';
-  // Check they are equal
-  if (std::all_of(s.begin(), s.end(), [&](int i){ return i == s[0]; }))
-    std::cout << "all equal\n";
-  //if (!std::all_of(s.cbegin(), s.cend(), [](int i){
-  // for i in e where i is not in s, repeat(E_i, L')
-  // where L' is the length of elements E_i for i in s.
-  // std::replace_if(e.begin(), e.end(),
-  //   
-  return e;
-}
-
-template <typename T>
-std::vector<std::vector<T>> repeat(std::vector<T> &e, int n) {
-  if (n < 2) return e;
-  return std::vector<std::vector<T>> (n, e);
-}
-
 Sequence repeat(Sequence &s, int n) {
   if (n < 2) return s;
   return Sequence {vec (n, s)};
 }
 
-// Minimum
-template <typename T>
-int minimum(T &a) {
-  return size(a);
-}
-
+// not used
+/*
 template <typename T, typename... Args>
 int minimum(T &a, Args... args) {
   return std::min(int(size(a)), minimum(args...));
 }
-
-template <typename T>
-int order(T &v) {
-  return 0;
-}
-
-template <typename T>
-int order(std::vector<T> &v) {
-  return 1 + order(v[0]);
-}
+*/
 
 int order(Sequence &v) {
   struct order_struct{
@@ -161,12 +116,29 @@ int order(Sequence &v) {
   return n;
 }
 
-void norme(Sequence& a, Sequence& b, int level) {
+/*
+void norme(Sequence& a) {
+  int a_size;
+  if (std::holds_alternative<vec>(a))
+    a_size = std::get<vec>(a).size();
+  else a_size = 1;
+  if (order(a) <= 1) return;
+  std::vector<int> orders (a_size, 0);
+  int max_order = std::max(std::transform(
+        std::get<vec>(a).begin(), 
+        std::get<vec>(a).end(),
+        orders.begin(),
+        [](const auto& a) { return order(a); } ));
+}
+*/
+
+void norme(Sequence& a, Sequence& b) {
   /*
   std::cout << "[norm] a: "; print(a);
   std::cout << "       b: "; print(b);
   std::cout << "       level: " << level << '\n';
   */
+
   int a_size, b_size;
   if (std::holds_alternative<vec>(a))
     a_size = std::get<vec>(a).size();
@@ -179,7 +151,7 @@ void norme(Sequence& a, Sequence& b, int level) {
   } else if ((order(a) > 1) && (order(a) == order(b)) && (a_size == b_size)) {
     // done at this level
     for (int i{0}; i < a_size; ++i)
-      norme(std::get<vec>(a).at(i).data, std::get<vec>(b).at(i).data, level-1);
+      norme(std::get<vec>(a).at(i).data, std::get<vec>(b).at(i).data);
     return;
   } else if ((order(a) == order(b)) && (a_size != b_size)) {
     normalise(std::get<vec>(a),std::get<vec>(b));
@@ -194,22 +166,7 @@ void norme(Sequence& a, Sequence& b, int level) {
     else
       b = repeat(b, a_size);
   }
-  // move to top
-  int max_order{0};
-  if (order(a) > order(b))
-    max_order = order(a);
-  else
-    max_order = order(b);
-  norme(a, b, max_order);
-}
-
-void norme(Sequence& a, Sequence& b) {
-  int max_order{0};
-  if (order(a) > order(b))
-    max_order = order(a);
-  else
-    max_order = order(b);
-  norme(a, b, max_order);
+  norme(a, b);
 }
 
 // Distribute
@@ -303,4 +260,13 @@ int main() {
   std::cout << "normalised b: "; print(b);
   result = transpose_distribute(a,b);
   std::cout << "result:       "; print(result);
+
+  /*
+  a = vec{1,vec{4,5},3};
+  std::cout << "a: "; print(a);
+  norme(a,a);
+  std::cout << "normalised a: "; print(a);
+  result = transpose_distribute(a,a);
+  std::cout << "result:       "; print(result);
+  */
 }
