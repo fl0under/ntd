@@ -1,3 +1,5 @@
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+
 #include <vector>
 #include <iostream>
 #include <algorithm>
@@ -7,6 +9,7 @@
 #include <type_traits>
 #include <variant>
 #include "prettyprint.hpp"
+#include "doctest.h"
 
 // A variant based implementation of a sequence that allows
 // recursive data structures.
@@ -27,6 +30,37 @@ namespace impl {
     return std::visit( [](auto const &l, auto const &r) -> Sequence {
         return l + r;
     }, lhs, rhs);
+  }
+
+  bool operator== (Sequence lhs, Sequence rhs) {
+    auto is_equal = [&](Sequence lhs, Sequence rhs) -> bool {
+      // Both vecs
+      if (std::holds_alternative<vec>(lhs) && std::holds_alternative<vec>(rhs)) {
+        // Not same size can't be equivalent
+        if (std::get<vec>(lhs).size() != std::get<vec>(rhs).size())
+          return false;
+        else {
+          std::vector<bool> eq {};
+          std::transform(std::get<vec>(lhs).begin(),
+                         std::get<vec>(lhs).end(),
+                         std::get<vec>(rhs).begin(),
+                         std::back_inserter(eq),
+                         [](const auto& l, const auto& r) -> bool {
+                           return l.data == r.data; }
+              );
+          return std::all_of(eq.begin(), eq.end(), [](bool b){ return b;});
+        }
+      } else if (std::holds_alternative<int>(lhs) && std::holds_alternative<int>(rhs)) {
+        return std::get<int>(lhs) == std::get<int>(rhs);
+      } else {
+        return false;
+      }
+    };
+    return is_equal(lhs, rhs);
+  }
+
+  bool operator!= (Sequence lhs, Sequence rhs) {
+    return !(lhs == rhs);
   }
 }
 using impl::Sequence;
@@ -169,9 +203,22 @@ void norme(Sequence& a, Sequence& b) {
   norme(a, b);
 }
 
+TEST_CASE("testing normalisation") {
+  Sequence a,b;
+
+  SUBCASE("order 1") {
+    a = vec{1,2,3,4,5};
+    b = vec{6,7};
+    norme(a,b);
+
+    CHECK(a == Sequence { vec{1,2,3,4,5} });
+    CHECK(b == Sequence { vec{6,7,6,7,6} });
+    CHECK(3 == 4);
+  }
+}
+
+
 // Distribute
-
-
 Sequence transpose_distribute(Sequence& a, Sequence& b) {
   int _order = order(a);
   Sequence result = vec{};
@@ -194,7 +241,7 @@ Sequence transpose_distribute(Sequence& a, Sequence& b) {
   return result;
 }
 
-
+/*
 int main() {
   std::vector<int> vec1 {1,2,3,4,5,6,7,8};
   std::vector<double> vec2 {4,5,3,2};
@@ -261,12 +308,14 @@ int main() {
   result = transpose_distribute(a,b);
   std::cout << "result:       "; print(result);
 
-  /*
+  
   a = vec{1,vec{4,5},3};
   std::cout << "a: "; print(a);
   norme(a,a);
   std::cout << "normalised a: "; print(a);
   result = transpose_distribute(a,a);
   std::cout << "result:       "; print(result);
-  */
+ 
 }
+*/
+
