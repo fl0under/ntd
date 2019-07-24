@@ -11,6 +11,17 @@
 #include "prettyprint.hpp"
 #include "doctest.h"
 
+// Helper for variant visting
+template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+
+// Recursive visit to hide access to data
+template <typename Visitor, typename Variant>
+decltype(auto) visit_recursively(Visitor&& visitor, Variant variant) {
+  return std::visit (std::forward<Visitor>(visitor),
+                     std::forward<Variant>(variant).data);
+}
+
 // A variant based implementation of a sequence that allows
 // recursive data structures.
 namespace impl {
@@ -62,16 +73,28 @@ namespace impl {
   bool operator!= (Sequence lhs, Sequence rhs) {
     return !(lhs == rhs);
   }
+
+  std::ostream &operator<< (std::ostream &os, Sequence s) {
+    std::string seq_string{};
+    struct build_string {
+      std::string& str;
+      build_string (std::string& _str) : str(_str) {}
+      void operator() (int x) { str += std::to_string(x); }
+      void operator() (const vec& v) {
+        str += "[";
+        for (int i{0}; i < v.size(); ++i) {
+          visit_recursively(*this, v[i]);
+          if (i != v.size()-1) str += ", ";
+        }
+        str += "]";
+      }
+    };
+    std::visit(build_string(seq_string), s);
+    return os << seq_string;
+  }
 }
 using impl::Sequence;
 using impl::vec;
-
-// Recursive visit to hide access to data
-template <typename Visitor, typename Variant>
-decltype(auto) visit_recursively(Visitor&& visitor, Variant variant) {
-  return std::visit (std::forward<Visitor>(visitor),
-                     std::forward<Variant>(variant).data);
-}
 
 // Print a sequence, complete with brackets
 struct seq_print {
@@ -206,14 +229,31 @@ void norme(Sequence& a, Sequence& b) {
 TEST_CASE("testing normalisation") {
   Sequence a,b;
 
+  SUBCASE("order 1, same length") {
+    a = vec{2,3,4};
+    b = vec{3,2,6};
+    norme(a,b);
+
+    CHECK(a == Sequence { vec{2,3,4} });
+    CHECK(b == Sequence { vec{3,2,6} });
+  }
+
   SUBCASE("order 1") {
     a = vec{1,2,3,4,5};
     b = vec{6,7};
     norme(a,b);
 
-    print(b);
     CHECK(a == Sequence { vec{1,2,3,4,5} });
     CHECK(b == Sequence { vec{6,7,6,7,6} });
+  }
+
+  SUBCASE("order 2") {
+    a = vec{vec{2,3},vec{5,7}};
+    b = vec{vec{8,9},vec{2,1},vec{7,6}};
+    norme(a,b);
+
+    CHECK(a == Sequence { vec{vec{2,3},vec{5,7},vec{2,3}} });
+    CHECK(b == Sequence { vec{vec{8,9},vec{2,1},vec{7,6}} });
   }
 
   SUBCASE("order delta 1, different length") {
