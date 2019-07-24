@@ -147,13 +147,6 @@ Sequence repeat(Sequence &s, int n) {
   return Sequence {vec (n, s)};
 }
 
-// not used
-/*
-template <typename T, typename... Args>
-int minimum(T &a, Args... args) {
-  return std::min(int(size(a)), minimum(args...));
-}
-*/
 
 int order(Sequence &v) {
   struct order_struct{
@@ -169,22 +162,6 @@ int order(Sequence &v) {
 
   return n;
 }
-
-/*
-void norme(Sequence& a) {
-  int a_size;
-  if (std::holds_alternative<vec>(a))
-    a_size = std::get<vec>(a).size();
-  else a_size = 1;
-  if (order(a) <= 1) return;
-  std::vector<int> orders (a_size, 0);
-  int max_order = std::max(std::transform(
-        std::get<vec>(a).begin(), 
-        std::get<vec>(a).end(),
-        orders.begin(),
-        [](const auto& a) { return order(a); } ));
-}
-*/
 
 void norme(Sequence& a, Sequence& b) {
   /*
