@@ -254,6 +254,15 @@ TEST_CASE("testing normalisation") {
     CHECK(b == Sequence { vec{vec{8,9},vec{2,1},vec{7,6}} });
   }
 
+  SUBCASE("order 3") {
+    a = vec{vec{vec{2,2},vec{3,3}}, vec{vec{5,5},vec{7,7}}};
+    b = vec{vec{vec{8,8},vec{9,9}}, vec{vec{2,2},vec{1,1}}, vec{vec{7,7},vec{6,6}}};
+    norme(a,b);
+
+    CHECK(a == Sequence { vec{vec{vec{2,2},vec{3,3}}, vec{vec{5,5},vec{7,7}}, vec{vec{2,2},vec{3,3}}}});
+    CHECK(b == Sequence { vec{vec{vec{8,8},vec{9,9}}, vec{vec{2,2},vec{1,1}}, vec{vec{7,7},vec{6,6}}}});
+  }
+
   SUBCASE("order delta 1, different length") {
     a = vec{6, 7};
     b = vec{8, vec{3, 4}, 1};
@@ -287,6 +296,20 @@ Sequence transpose_distribute(Sequence& a, Sequence& b) {
   }
   return result;
 }
+
+
+TEST_CASE("testing transpose-distribute") {
+  Sequence a,b,result;
+
+  SUBCASE("order 1") {
+    a = vec{2,3,4};
+    b = vec{3,2,6};
+    result = transpose_distribute(a,b);
+
+    CHECK(result == Sequence { vec{5,5,10} });
+  }
+}
+
 
 /*
 int main() {
