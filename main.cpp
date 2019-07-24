@@ -103,8 +103,8 @@ constexpr void normalise(T &a, V &b) {
     // if other vectors in the parent Sequence are resized after
     // the iterator is initilised.
     static int i{0};
-    i = ((i+1) != v.size()) ? i : 0;
-    return v.at(i);
+    if (i == v.size()) i = 0;
+    return v.at(i++);
   };
 
   auto norm = [&](auto& v, int n) {
@@ -211,9 +211,18 @@ TEST_CASE("testing normalisation") {
     b = vec{6,7};
     norme(a,b);
 
+    print(b);
     CHECK(a == Sequence { vec{1,2,3,4,5} });
     CHECK(b == Sequence { vec{6,7,6,7,6} });
-    CHECK(3 == 4);
+  }
+
+  SUBCASE("order delta 1, different length") {
+    a = vec{6, 7};
+    b = vec{8, vec{3, 4}, 1};
+    norme(a,b);
+
+    CHECK(a == Sequence { vec{vec{6,7},vec{6,7},vec{6,7}} });
+    CHECK(b == Sequence { vec{vec{8,8},vec{3,4},vec{1,1}} });
   }
 }
 
