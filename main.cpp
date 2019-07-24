@@ -8,7 +8,6 @@
 #include <typeinfo>
 #include <type_traits>
 #include <variant>
-#include "prettyprint.hpp"
 #include "doctest.h"
 
 // Helper for variant visting
