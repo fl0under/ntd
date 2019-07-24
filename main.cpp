@@ -103,7 +103,7 @@ using impl::vec;
 // Normalise the length of two containers by repeating elements
 // of the smaller container.
 template <typename T, typename V>
-constexpr void normalise(T &a, V &b) {
+constexpr void repeat_elements(T &a, V &b) {
   auto gen = [&](const auto& v, int& i) {
     if (i == v.size()) i = 0;
     return v.at(i++);
@@ -125,7 +125,7 @@ constexpr void normalise(T &a, V &b) {
 }
 
 
-Sequence repeat(Sequence &s, int n) {
+Sequence clone_elements(Sequence &s, int n) {
   if (n < 2) return s;
   return Sequence {vec (n, s)};
 }
@@ -146,7 +146,7 @@ int order(Sequence &v) {
   return n;
 }
 
-void norme(Sequence& a, Sequence& b) {
+void normalise(Sequence& a, Sequence& b) {
   /*
   std::cout << "[norm] a: " << a << '\n';
   std::cout << "       b: " << b << '\n';;
@@ -165,22 +165,22 @@ void norme(Sequence& a, Sequence& b) {
   } else if ((order(a) > 1) && (order(a) == order(b)) && (a_size == b_size)) {
     // done at this level
     for (int i{0}; i < a_size; ++i)
-      norme(std::get<vec>(a).at(i).data, std::get<vec>(b).at(i).data);
+      normalise(std::get<vec>(a).at(i).data, std::get<vec>(b).at(i).data);
     return;
   } else if ((order(a) == order(b)) && (a_size != b_size)) {
-    normalise(std::get<vec>(a),std::get<vec>(b));
+    repeat_elements(std::get<vec>(a),std::get<vec>(b));
   } else if ((a_size == b_size) && (order(a) != order(b))) {
     if (order(a) < order(b))
-      a = repeat(a, b_size);
+      a = clone_elements(a, b_size);
     else
-      b = repeat(b, a_size);
+      b = clone_elements(b, a_size);
   } else {
     if (order(a) < order(b))
-      a = repeat(a, b_size);
+      a = clone_elements(a, b_size);
     else
-      b = repeat(b, a_size);
+      b = clone_elements(b, a_size);
   }
-  norme(a, b);
+  normalise(a, b);
 }
 
 TEST_CASE("testing normalisation") {
@@ -189,7 +189,7 @@ TEST_CASE("testing normalisation") {
   SUBCASE("order 1, same length") {
     a = vec{2,3,4};
     b = vec{3,2,6};
-    norme(a,b);
+    normalise(a,b);
 
     CHECK(a == Sequence { vec{2,3,4} });
     CHECK(b == Sequence { vec{3,2,6} });
@@ -199,7 +199,7 @@ TEST_CASE("testing normalisation") {
   SUBCASE("order 1") {
     a = vec{1,2,3,4,5};
     b = vec{6,7};
-    norme(a,b);
+    normalise(a,b);
 
     CHECK(a == Sequence { vec{1,2,3,4,5} });
     CHECK(b == Sequence { vec{6,7,6,7,6} });
@@ -208,7 +208,7 @@ TEST_CASE("testing normalisation") {
   SUBCASE("order 2") {
     a = vec{vec{2,3},vec{5,7}};
     b = vec{vec{8,9},vec{2,1},vec{7,6}};
-    norme(a,b);
+    normalise(a,b);
 
     CHECK(a == Sequence { vec{vec{2,3},vec{5,7},vec{2,3}} });
     CHECK(b == Sequence { vec{vec{8,9},vec{2,1},vec{7,6}} });
@@ -217,7 +217,7 @@ TEST_CASE("testing normalisation") {
   SUBCASE("order 3") {
     a = vec{vec{vec{2,2},vec{3,3}}, vec{vec{5,5},vec{7,7}}};
     b = vec{vec{vec{8,8},vec{9,9}}, vec{vec{2,2},vec{1,1}}, vec{vec{7,7},vec{6,6}}};
-    norme(a,b);
+    normalise(a,b);
 
     CHECK(a == Sequence { vec{vec{vec{2,2},vec{3,3}}, vec{vec{5,5},vec{7,7}}, vec{vec{2,2},vec{3,3}}}});
     CHECK(b == Sequence { vec{vec{vec{8,8},vec{9,9}}, vec{vec{2,2},vec{1,1}}, vec{vec{7,7},vec{6,6}}}});
@@ -226,11 +226,38 @@ TEST_CASE("testing normalisation") {
   SUBCASE("order delta 1, different length") {
     a = vec{6, 7};
     b = vec{8, vec{3, 4}, 1};
-    norme(a,b);
+    normalise(a,b);
 
     CHECK(a == Sequence { vec{vec{6,7},vec{6,7},vec{6,7}} });
     CHECK(b == Sequence { vec{vec{8,8},vec{3,4},vec{1,1}} });
   }
+
+  SUBCASE("order delta 1, same length") {
+    a = vec{1,2,3};
+    b = vec{5, vec{3,4}, vec{7,6}};
+    normalise(a,b);
+
+    CHECK(a == Sequence { vec{vec{1,2,3},vec{1,2,3},vec{1,2,3}} });
+    CHECK(b == Sequence { vec{vec{5,5,5},vec{3,4,3},vec{7,6,7}} });
+  }
+
+  SUBCASE("order delta 2, same length") {
+    a = vec{1,2,3};
+    b = vec{5, vec{vec{3,0},4}, vec{7,6}};
+    normalise(a,b);
+
+    CHECK(a == Sequence { vec{ vec{vec{1,2,3},vec{1,2,3},vec{1,2,3}},
+                               vec{vec{1,2,3},vec{1,2,3},vec{1,2,3}},
+                               vec{vec{1,2,3},vec{1,2,3},vec{1,2,3}}
+                          }
+                        });
+    CHECK(b == Sequence { vec{ vec{vec{5,5,5},vec{5,5,5},vec{5,5,5}},
+                               vec{vec{3,0,3},vec{4,4,4},vec{3,0,3}},
+                               vec{vec{7,6,7},vec{7,6,7},vec{7,6,7}}
+                          }
+                        });
+  }
+
 }
 
 
@@ -302,7 +329,7 @@ int main() {
   Sequence b = h;
   std::cout << "a: " << a << '\n';
   std::cout << "b: " << b << '\n';
-  norme(a,b);
+  normalise(a,b);
   std::cout << "normalised a: " << a << '\n';;
   std::cout << "normalised b: " << b << '\n';
   result = transpose_distribute(a,b);
@@ -312,7 +339,7 @@ int main() {
   b = vec{5, vec{3,4}, vec{7,6}};
   std::cout << "a: " << a << '\n';
   std::cout << "b: " << b << '\n';
-  norme(a,b);
+  normalise(a,b);
   std::cout << "normalised a: " << a << '\n';;
   std::cout << "normalised b: " << b << '\n';
   result = transpose_distribute(a,b);
@@ -322,7 +349,7 @@ int main() {
   b = vec{5, vec{3,4}, vec{7,6}};
   std::cout << "a: " << a << '\n';
   std::cout << "b: " << b << '\n';
-  norme(a,b);
+  normalise(a,b);
   std::cout << "normalised a: " << a << '\n';;
   std::cout << "normalised b: " << b << '\n';
   result = transpose_distribute(a,b);
@@ -332,7 +359,7 @@ int main() {
   b = vec{4,5,6};
   std::cout << "a: " << a << '\n';
   std::cout << "b: " << b << '\n';
-  norme(a,b);
+  normalise(a,b);
   std::cout << "normalised a: " << a << '\n';;
   std::cout << "normalised b: " << b << '\n';
   result = transpose_distribute(a,b);
@@ -341,7 +368,7 @@ int main() {
   
   a = vec{1,vec{4,5},3};
   std::cout << "a: " << a << '\n';
-  norme(a,a);
+  normalise(a,a);
   std::cout << "normalised a: " << a << '\n';;
   result = transpose_distribute(a,a);
   std::cout << "result:       " << result << '\n';
