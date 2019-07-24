@@ -128,19 +128,16 @@ Sequence clone_elements(Sequence &s, int n) {
 }
 
 
-int order(Sequence &v) {
-  struct order_struct{
-    int operator() (int x) { return 0; }
-    int operator() (vec& v) {
-      std::vector<int> depth;
-      for (auto& x : v)
-        depth.push_back(order(x.data));
-      return 1 + *max_element(depth.begin(), depth.end());
-    }
-  };
-  int n = std::visit(order_struct{}, v);
-
-  return n;
+int order(const Sequence &v) {
+  return std::visit( overloaded {
+        [] (const int x) { return 0; },
+        [] (const vec& v) {
+          std::vector<int> depth;
+          for (auto& x : v)
+            depth.push_back(order(x.data));
+          return 1 + *max_element(depth.begin(), depth.end());
+        }
+    }, v);
 }
 
 void normalise(Sequence& a, Sequence& b) {
