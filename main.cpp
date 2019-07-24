@@ -323,8 +323,33 @@ TEST_CASE("testing transpose-distribute") {
 
     CHECK(result == Sequence { vec{vec{5,12},vec{21,32}} });
   }
+
+  SUBCASE("order 1, multiply") {
+    a = vec{3,3,3};
+    b = vec{-1,3,2};
+    result = transpose_distribute(a, b, sequence_operator::multiplies);
+
+    CHECK(result == Sequence { vec{-3,9,6} });
+  }
 }
 
+template <typename TF>
+Sequence ntd(Sequence& a, Sequence& b, TF&& func) {
+  normalise(a,b);
+  return transpose_distribute(a,b,func);
+}
+
+TEST_CASE("testing transpose-distribute") {
+  Sequence a,b,result;
+
+  SUBCASE("order delta 1, multiply") {
+    a = 3;
+    b = vec{-1,3,2};
+    result = ntd(a, b, sequence_operator::multiplies);
+
+    CHECK(result == Sequence { vec{-3,9,6} });
+  }
+}
 
 /*
 int main() {
