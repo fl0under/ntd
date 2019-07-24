@@ -121,17 +121,14 @@ void print(Sequence s) {
 // of the smaller container.
 template <typename T, typename V>
 constexpr void normalise(T &a, V &b) {
-  auto gen = [&](const auto& v) {
-    // Don't use iterators here as it might access out of bounds memory
-    // if other vectors in the parent Sequence are resized after
-    // the iterator is initilised.
-    static int i{0};
+  auto gen = [&](const auto& v, int& i) {
     if (i == v.size()) i = 0;
     return v.at(i++);
   };
 
   auto norm = [&](auto& v, int n) {
-    auto g = std::bind(gen, v);
+    int index{0};
+    auto g = std::bind(gen, v, index);
     v.resize(v.size() + n);
     std::generate(v.end()-n, v.end(), g);
   };
@@ -238,6 +235,7 @@ TEST_CASE("testing normalisation") {
     CHECK(b == Sequence { vec{3,2,6} });
   }
 
+  
   SUBCASE("order 1") {
     a = vec{1,2,3,4,5};
     b = vec{6,7};
