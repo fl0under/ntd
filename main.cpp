@@ -74,6 +74,7 @@ namespace impl {
     return !(lhs == rhs);
   }
 
+  // Enable printing of a Sequence
   std::ostream &operator<< (std::ostream &os, Sequence s) {
     std::string seq_string{};
     struct build_string {
@@ -95,24 +96,6 @@ namespace impl {
 }
 using impl::Sequence;
 using impl::vec;
-
-// Print a sequence, complete with brackets
-struct seq_print {
-  void operator() (int x) { std::cout << x; }
-  void operator() (const vec& v) {
-    std::cout << '[';
-    for (int i{0}; i < v.size(); ++i) {
-      visit_recursively(*this, v[i]);
-      if (i != v.size()-1) std::cout << ", ";
-    }
-    std::cout << ']';
-  }
-}seq_print;
-
-void print(Sequence s) {
-  std::visit(seq_print, s);
-  std::cout << '\n';
-}
 
 
 // NTD: Normalise Transpose Distribute
@@ -165,8 +148,8 @@ int order(Sequence &v) {
 
 void norme(Sequence& a, Sequence& b) {
   /*
-  std::cout << "[norm] a: "; print(a);
-  std::cout << "       b: "; print(b);
+  std::cout << "[norm] a: " << a << '\n';
+  std::cout << "       b: " << b << '\n';;
   std::cout << "       level: " << level << '\n';
   */
 
@@ -305,63 +288,63 @@ int main() {
   Sequence g = vec{8, 4, 5, 2, 1};
   Sequence h = vec{8, vec{3, 4}, 1};
 
-  //print(c);
-  //print(d);
-  //print(e);
-  //print(f);
-  //print(g);
-  //print(h);
+  std::cout << c << '\n';
+  std::cout << d << '\n';
+  std::cout << e << '\n';
+  std::cout << f << '\n';
+  std::cout << g << '\n';
+  std::cout << h << '\n';
   
   Sequence result = vec{};
 
   // Attempt to normalise two sequences
   Sequence a = d;
   Sequence b = h;
-  std::cout << "a: "; print(a);
-  std::cout << "b: "; print(b);
+  std::cout << "a: " << a << '\n';
+  std::cout << "b: " << b << '\n';
   norme(a,b);
-  std::cout << "normalised a: "; print(a);
-  std::cout << "normalised b: "; print(b);
+  std::cout << "normalised a: " << a << '\n';;
+  std::cout << "normalised b: " << b << '\n';
   result = transpose_distribute(a,b);
-  std::cout << "result:       "; print(result);
+  std::cout << "result:       " << result << '\n';
 
   a = vec{1,2,3};
   b = vec{5, vec{3,4}, vec{7,6}};
-  std::cout << "a: "; print(a);
-  std::cout << "b: "; print(b);
+  std::cout << "a: " << a << '\n';
+  std::cout << "b: " << b << '\n';
   norme(a,b);
-  std::cout << "normalised a: "; print(a);
-  std::cout << "normalised b: "; print(b);
+  std::cout << "normalised a: " << a << '\n';;
+  std::cout << "normalised b: " << b << '\n';
   result = transpose_distribute(a,b);
-  std::cout << "result:       "; print(result);
+  std::cout << "result:       " << result << '\n';
 
   a = vec{1,2};
   b = vec{5, vec{3,4}, vec{7,6}};
-  std::cout << "a: "; print(a);
-  std::cout << "b: "; print(b);
+  std::cout << "a: " << a << '\n';
+  std::cout << "b: " << b << '\n';
   norme(a,b);
-  std::cout << "normalised a: "; print(a);
-  std::cout << "normalised b: "; print(b);
+  std::cout << "normalised a: " << a << '\n';;
+  std::cout << "normalised b: " << b << '\n';
   result = transpose_distribute(a,b);
-  std::cout << "result:       "; print(result);
+  std::cout << "result:       " << result << '\n';
   
   a = vec{1,2,3};
   b = vec{4,5,6};
-  std::cout << "a: "; print(a);
-  std::cout << "b: "; print(b);
+  std::cout << "a: " << a << '\n';
+  std::cout << "b: " << b << '\n';
   norme(a,b);
-  std::cout << "normalised a: "; print(a);
-  std::cout << "normalised b: "; print(b);
+  std::cout << "normalised a: " << a << '\n';;
+  std::cout << "normalised b: " << b << '\n';
   result = transpose_distribute(a,b);
-  std::cout << "result:       "; print(result);
+  std::cout << "result:       " << result << '\n';
 
   
   a = vec{1,vec{4,5},3};
-  std::cout << "a: "; print(a);
+  std::cout << "a: " << a << '\n';
   norme(a,a);
-  std::cout << "normalised a: "; print(a);
+  std::cout << "normalised a: " << a << '\n';;
   result = transpose_distribute(a,a);
-  std::cout << "result:       "; print(result);
+  std::cout << "result:       " << result << '\n';
  
 }
 */
