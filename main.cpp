@@ -43,6 +43,12 @@ namespace impl {
     }, lhs, rhs);
   }
 
+  Sequence operator* (Sequence lhs, Sequence rhs) {
+    return std::visit( [](auto const &l, auto const &r) -> Sequence {
+        return l * r;
+    }, lhs, rhs);
+  }
+
   bool operator== (Sequence lhs, Sequence rhs) {
     // Both vecs
     if (std::holds_alternative<vec>(lhs) && std::holds_alternative<vec>(rhs)) {
@@ -254,9 +260,21 @@ TEST_CASE("testing normalisation") {
 
 }
 
+namespace sequence_operator {
+  Sequence plus(impl::wrapper& a, impl::wrapper& b) {
+    return a.data + b.data;
+  }
 
-// Distribute
-Sequence transpose_distribute(Sequence& a, Sequence& b) {
+  Sequence multiplies(impl::wrapper& a, impl::wrapper& b) {
+    return a.data * b.data;
+  }
+}
+
+// Pass functions using template params for now,
+// maybe change to function_view from here later.
+// https://vittorioromeo.info/index/blog/passing_functions_to_functions.htm
+template <typename TF>
+Sequence transpose_distribute(Sequence& a, Sequence& b, TF&& func) {
   int _order = order(a);
   Sequence result = vec{};
 
@@ -266,13 +284,13 @@ Sequence transpose_distribute(Sequence& a, Sequence& b) {
         std::get<vec>(a).end(),
         std::get<vec>(b).begin(),
         std::back_inserter(std::get<vec>(result)),
-        [](const auto& a, const auto& b) -> Sequence {
-          return a.data + b.data; } );
+        func
+        );
   } else {
     int a_size = std::get<vec>(a).size();
     for (int i{0}; i < a_size; ++i) {
       std::get<vec>(result).push_back(transpose_distribute(
-          std::get<vec>(a).at(i).data, std::get<vec>(b).at(i).data));
+          std::get<vec>(a).at(i).data, std::get<vec>(b).at(i).data, func));
     }
   }
   return result;
@@ -282,12 +300,28 @@ Sequence transpose_distribute(Sequence& a, Sequence& b) {
 TEST_CASE("testing transpose-distribute") {
   Sequence a,b,result;
 
-  SUBCASE("order 1") {
+  SUBCASE("order 1, plus") {
     a = vec{2,3,4};
     b = vec{3,2,6};
-    result = transpose_distribute(a,b);
+    result = transpose_distribute(a,b, sequence_operator::plus);
 
     CHECK(result == Sequence { vec{5,5,10} });
+  }
+
+  SUBCASE("order 1, multiply") {
+    a = vec{2,3,4};
+    b = vec{3,2,6};
+    result = transpose_distribute(a,b, sequence_operator::multiplies);
+
+    CHECK(result == Sequence { vec{6,6,24} });
+  }
+
+  SUBCASE("order 2, multiply") {
+    a = vec{vec{1,2},vec{3,4}};
+    b = vec{vec{5,6},vec{7,8}};
+    result = transpose_distribute(a, b, sequence_operator::multiplies);
+
+    CHECK(result == Sequence { vec{vec{5,12},vec{21,32}} });
   }
 }
 
