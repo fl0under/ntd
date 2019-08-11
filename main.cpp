@@ -1,4 +1,5 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+//#define DOCTEST_CONFIG_IMPLEMENT
 
 #include <vector>
 #include <iostream>
@@ -126,6 +127,28 @@ constexpr void repeat_elements(T &a, V &b) {
     norm(b, diff);
 }
 
+template <typename T>
+constexpr void repeat_elements1(T &a, int b) {
+  auto gen = [&](const auto& v, int& i) {
+    if (i == v.size()) i = 0;
+    return v.at(i++);
+  };
+
+  auto norm = [&](auto& v, int n) {
+    int index{0};
+    auto g = std::bind(gen, v, index);
+    v.resize(v.size() + n);
+    std::generate(v.end()-n, v.end(), g);
+  };
+
+  int diff = b - a.size();
+
+  if (diff == 0)
+    return;
+  else if (diff > 0)
+    norm(a, diff);
+}
+
 
 Sequence clone_elements(Sequence &s, int n) {
   if (n < 2) return s;
@@ -143,6 +166,81 @@ int order(const Sequence &v) {
           return 1 + *max_element(depth.begin(), depth.end());
         }
     }, v);
+}
+
+/*
+// Get the max length at each level/depth
+std::vector<int> get_lengths(const Sequence &v) {
+  std::vector<int> lengths {};
+  lengths.push_back(std::visit( overloaded {
+    [] (const int x) -> int { return 1; },
+    [] (const vec& v) -> int { return v.size(); } }, v));
+  std::visit( overloaded {
+      [&] (const int x) { lengths.push_back(1); },
+      [&] (const vec& v) {
+        // get the size of each child vector and save the max
+        std::vector<int> child_lengths;
+        for (const auto& x : v)
+          child_lengths.push_back(std::visit( overloaded {
+            [] (const int x) -> int { return 1; },
+            [] (const vec& v) -> int { return v.size(); } }, x.data) );
+        lengths.push_back(*max_element(child_lengths.begin(), child_lengths.end()));
+      }
+
+      // call get_lengths on children
+      std::vector<int
+      for (const auto& x : v) {
+        std::visit( overloaded {
+          [] (const int x) { return; },
+          [&] (const vec& v) { 
+    }, v);
+  return lengths;
+}
+*/
+
+void normalise1(Sequence& a) {
+  int a_size;
+  if (std::holds_alternative<vec>(a))
+    a_size = std::get<vec>(a).size();
+  else a_size = 1;
+
+  if (order(a) <= 1) return;
+  // Get the order of each element
+  std::vector<int> elem_orders (a_size);
+  std::transform(
+      std::get<vec>(a).begin(),
+      std::get<vec>(a).end(),
+      elem_orders.begin(),
+      [](auto &x) { return order(x.data); });
+  for (auto& x : elem_orders) std::cout << x << ' '; std::cout << '\n';
+  // Is the order of each element at this level the same?
+  bool equiv_order = std::all_of(
+      elem_orders.begin(), elem_orders.end(),
+      [&](auto &x) { return x == elem_orders.at(0); }
+      );
+  // If not, make it so
+  if (!equiv_order) {
+    auto max_order = std::max_element(
+        elem_orders.begin(), elem_orders.end());
+    std::cout << "max_order is " << *max_order;
+    int max_pos = std::distance(elem_orders.begin(), max_order);
+    std::cout << " at position " << max_pos << '\n';
+    for (int i{0}; i < a_size; ++i)
+      if (i != max_pos) std::get<vec>(a).at(i).data = clone_elements(std::get<vec>(a).at(i).data,
+          std::get<vec>(std::get<vec>(a).at(max_pos).data).size());
+  }
+  // Need to make all elements same max_size
+  // What is the size of the biggest element at this level?
+  /*
+  auto max_size = std::max_element(std::get<vec>(a).begin(),
+      std::get<vec>(a).end(),
+      [](auto &l, auto &r) { return std::get<vec>(l.data).size() < std::get<vec>(r.data).size(); }
+      );
+  // Need to make all elements same max_size
+  for (int i{0}; i < a_size; ++i)
+    repeat_elements1(std::get<vec>(a), std::get<vec>((*max_size).data).size());
+*/
+  return;
 }
 
 void normalise(Sequence& a, Sequence& b) {
@@ -194,6 +292,12 @@ TEST_CASE("testing normalisation") {
     CHECK(b == Sequence { vec{3,2,6} });
   }
 
+  SUBCASE("order 2, same sequence") {
+    a = vec{vec{3,2},1};
+    normalise1(a);
+
+    CHECK(a == Sequence { vec{vec{3,2},vec{1,1}} });
+  }
   
   SUBCASE("order 1") {
     a = vec{1,2,3,4,5};
@@ -349,9 +453,26 @@ TEST_CASE("testing transpose-distribute") {
     CHECK(result == Sequence { vec{-3,9,6} });
   }
 }
-
 /*
 int main() {
+  //Sequence a = vec{2,3,vec{4,5}};
+  //auto lengths = get_lengths(a);
+  //for (auto& x : lengths) std::cout << x << ' '; std::cout << '\n';
+
+  // [2,3]
+  //std::vector<std::vector<my_var>> root1 = {{2,3}};
+  // [2,[4],3]
+  //std::vector<std::vector<my_var>> root2 = { {2,3} };
+  // [2,3]
+  //std::vector<std::vector<my_var>> root = {{2,3}};
+  //my_pointer mm ({2,6}); 
+  struct my_wrap;
+  using vvar = std::variant<int, my_wrap>;
+  struct my_wrap { vvar data;};
+  std::vector<std::vector<int,my_wrap>> root;
+  root.push_back(std::vector<int,my_wrap>{});
+  root[0].push_back(2);
+  root[0].push_back(std::vector<std::variant<int, my_wrap>>
+
 }
 */
-
