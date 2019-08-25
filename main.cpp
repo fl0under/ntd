@@ -192,8 +192,51 @@ std::vector<int> get_lengths(Sequence &s) {
   return lengths;
 }
 
+template<typename T>
+int max_vector_size(std::vector<T> v) {
+  return v.size();
+}
+template<typename T, typename... Targs>
+int max_vector_size(std::vector<T> v, Targs... args) {
+  return std::max(max_vector_size(v), max_vector_size(args...));
+}
+
+TEST_CASE("finding maximum vector length") {
+  std::vector<int> a,b,c;
+
+  SUBCASE("one vector") {
+    a = {2,3,5};
+    int size = max_vector_size(a);
+    CHECK(size == 3);
+  }
+
+  SUBCASE("two vectors") {
+    a = {2,3,5};
+    b = {4,5,6,7,8};
+    int size = max_vector_size(a,b);
+    CHECK(size == 5);
+  }
+
+  SUBCASE("three vectors") {
+    a = {2,3,5};
+    b = {4,5,6,75,5,43,2,8};
+    c = {1};
+    int size = max_vector_size(a,b,c);
+    CHECK(size == 8);
+  }
+}
+
+template<typename T, typename... Targs>
+std::vector<int> get_lengths(Sequence &s, Targs... args) {
+  std::vector<int> lengths {};
+  // Pick out the biggest of each
+  get_lengths(s);
+  return lengths;
+}
+
+
 TEST_CASE("getting lengths") {
-  Sequence a;
+  Sequence a,b;
 
   SUBCASE("order 1") {
     a = vec{2,3,4};
@@ -229,7 +272,6 @@ TEST_CASE("getting lengths") {
 void copy_elements(
     std::vector<int>& norm_s, std::vector<int>& lengths, int order, Sequence s, int& start_pos) {
 
-  //if (std::holds_alternative<int>) return;
   bool done {false};
   int n{0};
 
@@ -239,7 +281,6 @@ void copy_elements(
     n = 1;
   } else {
     // Make the current element the right length
-    //int n = lengths.at(order-1) - std::get<vec>(s).size();
     n = std::accumulate( lengths.begin() + order-1,  lengths.end(),
         1, std::multiplies<int>() );
     // For a vector, repeat elements until have the required length
@@ -247,7 +288,7 @@ void copy_elements(
       repeat_elements1(std::get<vec>(s), lengths.at(order-1));
     // For a number, just clone it to get required length
     else {
-      clone_elements1(s, n); // not tested this one
+      clone_elements1(s, n);
       done = true;
     }
   }
@@ -255,8 +296,6 @@ void copy_elements(
   if (done) {
     // Copy it across to the final vector
     if (std::holds_alternative<vec>(s)) {
-      //std::transform(std::get<vec>(s).begin(), std::get<vec>(s).end(), 
-      //    norm_s.begin() + start_pos, [](impl::wrapper v) -> int { return std::get<int>(v.data); });
       for (int i{0}; i < n; ++i) {
         norm_s.at(start_pos+i) = std::get<int>( std::get<vec>(s).at(i).data );
       }
