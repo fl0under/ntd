@@ -10,6 +10,7 @@
 #include <type_traits>
 #include <variant>
 #include "doctest.h"
+#include "prettyprint.hpp"
 
 // Helper for variant visting
 template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
@@ -168,35 +169,56 @@ int order(const Sequence &v) {
     }, v);
 }
 
-/*
 // Get the max length at each level/depth
-std::vector<int> get_lengths(const Sequence &v) {
-  std::vector<int> lengths {};
-  lengths.push_back(std::visit( overloaded {
-    [] (const int x) -> int { return 1; },
-    [] (const vec& v) -> int { return v.size(); } }, v));
-  std::visit( overloaded {
-      [&] (const int x) { lengths.push_back(1); },
-      [&] (const vec& v) {
-        // get the size of each child vector and save the max
-        std::vector<int> child_lengths;
-        for (const auto& x : v)
-          child_lengths.push_back(std::visit( overloaded {
-            [] (const int x) -> int { return 1; },
-            [] (const vec& v) -> int { return v.size(); } }, x.data) );
-        lengths.push_back(*max_element(child_lengths.begin(), child_lengths.end()));
-      }
+void get_length(std::vector<int>& lengths, int order, Sequence& s) {
+  if (std::holds_alternative<int>(s)) return;
+  if (order > lengths.size()) lengths.push_back(0);
+  int n = std::get<vec>(s).size();
+  if (n > lengths.at(order-1))
+    lengths.at(order-1) = n;
+  for (auto& x : std::get<vec>(s))
+    get_length(lengths, order+1, x.data);
+}
 
-      // call get_lengths on children
-      std::vector<int
-      for (const auto& x : v) {
-        std::visit( overloaded {
-          [] (const int x) { return; },
-          [&] (const vec& v) { 
-    }, v);
+std::vector<int> get_lengths(Sequence &s) {
+  std::vector<int> lengths {0};
+  get_length(lengths, 1, s);
   return lengths;
 }
-*/
+
+TEST_CASE("getting lengths") {
+  Sequence a;
+
+  SUBCASE("order 1") {
+    a = vec{2,3,4};
+    auto lengths = get_lengths(a);
+    CHECK(lengths == std::vector<int>{3});
+  }
+
+  SUBCASE("order 2") {
+    a = vec{2,3,vec{4,5}};
+    auto lengths = get_lengths(a);
+    CHECK(lengths == std::vector<int>{3,2});
+  }
+
+  SUBCASE("order 2") {
+    a = vec{vec{1,2,3},3,vec{4,5},vec{5}};
+    auto lengths = get_lengths(a);
+    CHECK(lengths == std::vector<int>{4,3});
+  }
+
+  SUBCASE("order 3") {
+    a = vec{2,3,vec{2,3,vec{7,8}},vec{4,5}};
+    auto lengths = get_lengths(a);
+    CHECK(lengths == std::vector<int>{4,3,2});
+  }
+
+  SUBCASE("order 0") {
+    a = 73;
+    auto lengths = get_lengths(a);
+    CHECK(lengths == std::vector<int>{0});
+  }
+}
 
 void normalise1(Sequence& a) {
   int a_size;
@@ -212,7 +234,7 @@ void normalise1(Sequence& a) {
       std::get<vec>(a).end(),
       elem_orders.begin(),
       [](auto &x) { return order(x.data); });
-  for (auto& x : elem_orders) std::cout << x << ' '; std::cout << '\n';
+  //for (auto& x : elem_orders) std::cout << x << ' '; std::cout << '\n';
   // Is the order of each element at this level the same?
   bool equiv_order = std::all_of(
       elem_orders.begin(), elem_orders.end(),
@@ -222,9 +244,9 @@ void normalise1(Sequence& a) {
   if (!equiv_order) {
     auto max_order = std::max_element(
         elem_orders.begin(), elem_orders.end());
-    std::cout << "max_order is " << *max_order;
+    //std::cout << "max_order is " << *max_order;
     int max_pos = std::distance(elem_orders.begin(), max_order);
-    std::cout << " at position " << max_pos << '\n';
+    //std::cout << " at position " << max_pos << '\n';
     for (int i{0}; i < a_size; ++i)
       if (i != max_pos) std::get<vec>(a).at(i).data = clone_elements(std::get<vec>(a).at(i).data,
           std::get<vec>(std::get<vec>(a).at(max_pos).data).size());
