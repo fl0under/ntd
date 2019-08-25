@@ -2,6 +2,7 @@
 //#define DOCTEST_CONFIG_IMPLEMENT
 
 #include <vector>
+#include <numeric>
 #include <iostream>
 #include <algorithm>
 #include <iterator>
@@ -156,6 +157,11 @@ Sequence clone_elements(Sequence &s, int n) {
   return Sequence {vec (n, s)};
 }
 
+void clone_elements1(Sequence &s, int n) {
+  if (n < 2) return;
+  s = Sequence {vec (n, s)};
+}
+
 
 int order(const Sequence &v) {
   return std::visit( overloaded {
@@ -217,6 +223,83 @@ TEST_CASE("getting lengths") {
     a = 73;
     auto lengths = get_lengths(a);
     CHECK(lengths == std::vector<int>{0});
+  }
+}
+
+void copy_elements(
+    std::vector<int>& norm_s, std::vector<int>& lengths, int order, Sequence s, int& start_pos) {
+
+  //if (std::holds_alternative<int>) return;
+  bool done {false};
+  int n{0};
+
+  if (order > lengths.size()) {
+    // Must have reached a terminal vector
+    done = true;
+    n = 1;
+  } else {
+    // Make the current element the right length
+    //int n = lengths.at(order-1) - std::get<vec>(s).size();
+    n = std::accumulate( lengths.begin() + order-1,  lengths.end(),
+        1, std::multiplies<int>() );
+    // For a vector, repeat elements until have the required length
+    if (std::holds_alternative<vec>(s))
+      repeat_elements1(std::get<vec>(s), lengths.at(order-1));
+    // For a number, just clone it to get required length
+    else {
+      clone_elements1(s, n); // not tested this one
+      done = true;
+    }
+  }
+
+  if (done) {
+    // Copy it across to the final vector
+    if (std::holds_alternative<vec>(s)) {
+      //std::transform(std::get<vec>(s).begin(), std::get<vec>(s).end(), 
+      //    norm_s.begin() + start_pos, [](impl::wrapper v) -> int { return std::get<int>(v.data); });
+      for (int i{0}; i < n; ++i) {
+        norm_s.at(start_pos+i) = std::get<int>( std::get<vec>(s).at(i).data );
+      }
+    } else {
+      norm_s.at(start_pos) = std::get<int>(s);
+    }
+    start_pos += n; 
+  } else {
+    for (auto& x : std::get<vec>(s))
+      copy_elements(norm_s, lengths, order+1, x.data, start_pos);
+  }
+}
+
+std::vector<int> normalise2(Sequence s, std::vector<int> lengths) {
+  std::vector<int> norm_s ( std::accumulate(
+        lengths.begin(), lengths.end(), 1, std::multiplies<int>()) );
+  int start_pos {0};
+  copy_elements(norm_s, lengths, 1, s, start_pos);
+  return norm_s;
+}
+
+TEST_CASE("normalise2") {
+  Sequence a;
+
+  SUBCASE("order 1") {
+    a = vec{2,3,4};
+    auto lengths = get_lengths(a);
+    auto normalised = normalise2(a, lengths);
+    CHECK(normalised == std::vector<int>{2,3,4});
+  }
+
+  SUBCASE("order 2") {
+    a = vec{2,3,vec{7,8},4};
+    auto lengths = get_lengths(a);
+    auto normalised = normalise2(a, lengths);
+    CHECK(normalised == std::vector<int>{2,2,3,3,7,8,4,4});
+  }
+
+  SUBCASE("order 3") {
+    a = vec{vec{6,9,3},3,vec{7,8},4};
+    auto lengths = get_lengths(a);
+    auto normalised = normalise2(a, lengths);
+    CHECK(normalised == std::vector<int>{6,9,3,3,3,3,7,8,7,4,4,4});
   }
 }
 
