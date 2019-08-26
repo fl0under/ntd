@@ -176,40 +176,6 @@ int order(const Sequence &v) {
     }, v);
 }
 
-template<typename T>
-int max_vector_size(std::vector<T> v) {
-  return v.size();
-}
-template<typename T, typename... Targs>
-int max_vector_size(std::vector<T> v, Targs... args) {
-  return std::max(max_vector_size(v), max_vector_size(args...));
-}
-
-TEST_CASE("finding maximum vector length") {
-  std::vector<int> a,b,c;
-
-  SUBCASE("one vector") {
-    a = {2,3,5};
-    int size = max_vector_size(a);
-    CHECK(size == 3);
-  }
-
-  SUBCASE("two vectors") {
-    a = {2,3,5};
-    b = {4,5,6,7,8};
-    int size = max_vector_size(a,b);
-    CHECK(size == 5);
-  }
-
-  SUBCASE("three vectors") {
-    a = {2,3,5};
-    b = {4,5,6,75,5,43,2,8};
-    c = {1};
-    int size = max_vector_size(a,b,c);
-    CHECK(size == 8);
-  }
-}
-
 // Get the max length at each level/depth
 void get_length(std::vector<int>& lengths, int order, const Sequence s) {
   if (std::holds_alternative<int>(s)) return;
@@ -257,23 +223,6 @@ std::vector<int> get_lengths(std::initializer_list<Sequence> l) {
 TEST_CASE("getting lengths") {
   Sequence a,b,c,d;
 
-  SUBCASE("multiple lengths") {
-    a = vec{2,3,4};
-    b = vec{3,vec{2,4}};
-    c = vec{7};
-    auto lengths = get_lengths({a,b,c});
-    CHECK(lengths == std::vector<int>{3,2});
-  }
-
-  SUBCASE("multiple lengths") {
-    a = vec{2,3,4,6,7,8,3};
-    b = vec{3,vec{2,4}};
-    c = vec{7};
-    d = vec{vec{vec{2,8,4}}};
-    auto lengths = get_lengths({a,b,d,c});
-    CHECK(lengths == std::vector<int>{7,2,3});
-  }
-
   SUBCASE("order 1") {
     a = vec{2,3,4};
     auto lengths = get_lengths(a);
@@ -302,6 +251,23 @@ TEST_CASE("getting lengths") {
     a = 73;
     auto lengths = get_lengths(a);
     CHECK(lengths == std::vector<int>{0});
+  }
+
+  SUBCASE("multiple lengths") {
+    a = vec{2,3,4};
+    b = vec{3,vec{2,4}};
+    c = vec{7};
+    auto lengths = get_lengths({a,b,c});
+    CHECK(lengths == std::vector<int>{3,2});
+  }
+
+  SUBCASE("multiple lengths") {
+    a = vec{2,3,4,6,7,8,3};
+    b = vec{3,vec{2,4}};
+    c = vec{7};
+    d = vec{vec{vec{2,8,4}}};
+    auto lengths = get_lengths({a,b,d,c});
+    CHECK(lengths == std::vector<int>{7,2,3});
   }
 }
 
