@@ -108,30 +108,8 @@ using impl::vec;
 
 // Normalise the length of two containers by repeating elements
 // of the smaller container.
-template <typename T, typename V>
-constexpr void repeat_elements(T &a, V &b) {
-  auto gen = [&](const auto& v, int& i) {
-    if (i == v.size()) i = 0;
-    return v.at(i++);
-  };
-
-  auto norm = [&](auto& v, int n) {
-    int index{0};
-    auto g = std::bind(gen, v, index);
-    v.resize(v.size() + n);
-    std::generate(v.end()-n, v.end(), g);
-  };
-
-  int diff = a.size() - b.size();
-
-  if (diff < 0)
-    norm(a, abs(diff));
-  else if (diff > 0)
-    norm(b, diff);
-}
-
 template <typename T>
-constexpr void repeat_elements1(T &a, int b) {
+constexpr void repeat_elements(T &a, int b) {
   auto gen = [&](const auto& v, int& i) {
     if (i == v.size()) i = 0;
     return v.at(i++);
@@ -153,27 +131,9 @@ constexpr void repeat_elements1(T &a, int b) {
 }
 
 
-Sequence clone_elements(Sequence &s, int n) {
-  if (n < 2) return s;
-  return Sequence {vec (n, s)};
-}
-
-void clone_elements1(Sequence &s, int n) {
+void clone_elements(Sequence &s, int n) {
   if (n < 2) return;
   s = Sequence {vec (n, s)};
-}
-
-
-int order(const Sequence &v) {
-  return std::visit( overloaded {
-        [] (const int x) { return 0; },
-        [] (const vec& v) {
-          std::vector<int> depth;
-          for (auto& x : v)
-            depth.push_back(order(x.data));
-          return 1 + *max_element(depth.begin(), depth.end());
-        }
-    }, v);
 }
 
 // Get the max length at each level/depth
@@ -295,10 +255,10 @@ void copy_elements(
         1, std::multiplies<int>() );
     // For a vector, repeat elements until have the required length
     if (std::holds_alternative<vec>(s))
-      repeat_elements1(std::get<vec>(s), lengths.at(order-1));
+      repeat_elements(std::get<vec>(s), lengths.at(order-1));
     // For a number, just clone it to get required length
     else {
-      clone_elements1(s, n);
+      clone_elements(s, n);
       done = true;
     }
   }
@@ -494,171 +454,6 @@ TEST_CASE("testing normalise2, multiple Sequences") {
 }
 
 
-void normalise1(Sequence& a) {
-  int a_size;
-  if (std::holds_alternative<vec>(a))
-    a_size = std::get<vec>(a).size();
-  else a_size = 1;
-
-  if (order(a) <= 1) return;
-  // Get the order of each element
-  std::vector<int> elem_orders (a_size);
-  std::transform(
-      std::get<vec>(a).begin(),
-      std::get<vec>(a).end(),
-      elem_orders.begin(),
-      [](auto &x) { return order(x.data); });
-  //for (auto& x : elem_orders) std::cout << x << ' '; std::cout << '\n';
-  // Is the order of each element at this level the same?
-  bool equiv_order = std::all_of(
-      elem_orders.begin(), elem_orders.end(),
-      [&](auto &x) { return x == elem_orders.at(0); }
-      );
-  // If not, make it so
-  if (!equiv_order) {
-    auto max_order = std::max_element(
-        elem_orders.begin(), elem_orders.end());
-    //std::cout << "max_order is " << *max_order;
-    int max_pos = std::distance(elem_orders.begin(), max_order);
-    //std::cout << " at position " << max_pos << '\n';
-    for (int i{0}; i < a_size; ++i)
-      if (i != max_pos) std::get<vec>(a).at(i).data = clone_elements(std::get<vec>(a).at(i).data,
-          std::get<vec>(std::get<vec>(a).at(max_pos).data).size());
-  }
-  // Need to make all elements same max_size
-  // What is the size of the biggest element at this level?
-  /*
-  auto max_size = std::max_element(std::get<vec>(a).begin(),
-      std::get<vec>(a).end(),
-      [](auto &l, auto &r) { return std::get<vec>(l.data).size() < std::get<vec>(r.data).size(); }
-      );
-  // Need to make all elements same max_size
-  for (int i{0}; i < a_size; ++i)
-    repeat_elements1(std::get<vec>(a), std::get<vec>((*max_size).data).size());
-*/
-  return;
-}
-
-void normalise(Sequence& a, Sequence& b) {
-  /*
-  std::cout << "[norm] a: " << a << '\n';
-  std::cout << "       b: " << b << '\n';;
-  std::cout << "       level: " << level << '\n';
-  */
-
-  int a_size, b_size;
-  if (std::holds_alternative<vec>(a))
-    a_size = std::get<vec>(a).size();
-  else a_size = 1;
-  if (std::holds_alternative<vec>(b))
-     b_size = std::get<vec>(b).size();
-  else b_size = 1;
-  if ((order(a) <= 1) && (order(a) == order(b)) && (a_size == b_size)) {
-    return;
-  } else if ((order(a) > 1) && (order(a) == order(b)) && (a_size == b_size)) {
-    // done at this level
-    for (int i{0}; i < a_size; ++i)
-      normalise(std::get<vec>(a).at(i).data, std::get<vec>(b).at(i).data);
-    return;
-  } else if ((order(a) == order(b)) && (a_size != b_size)) {
-    repeat_elements(std::get<vec>(a),std::get<vec>(b));
-  } else if ((a_size == b_size) && (order(a) != order(b))) {
-    if (order(a) < order(b))
-      a = clone_elements(a, b_size);
-    else
-      b = clone_elements(b, a_size);
-  } else {
-    if (order(a) < order(b))
-      a = clone_elements(a, b_size);
-    else
-      b = clone_elements(b, a_size);
-  }
-  normalise(a, b);
-}
-
-TEST_CASE("testing normalisation") {
-  Sequence a,b;
-
-  SUBCASE("order 1, same length") {
-    a = vec{2,3,4};
-    b = vec{3,2,6};
-    normalise(a,b);
-
-    CHECK(a == Sequence { vec{2,3,4} });
-    CHECK(b == Sequence { vec{3,2,6} });
-  }
-
-  SUBCASE("order 2, same sequence") {
-    a = vec{vec{3,2},1};
-    normalise1(a);
-
-    CHECK(a == Sequence { vec{vec{3,2},vec{1,1}} });
-  }
-  
-  SUBCASE("order 1") {
-    a = vec{1,2,3,4,5};
-    b = vec{6,7};
-    normalise(a,b);
-
-    CHECK(a == Sequence { vec{1,2,3,4,5} });
-    CHECK(b == Sequence { vec{6,7,6,7,6} });
-  }
-
-  SUBCASE("order 2") {
-    a = vec{vec{2,3},vec{5,7}};
-    b = vec{vec{8,9},vec{2,1},vec{7,6}};
-    normalise(a,b);
-
-    CHECK(a == Sequence { vec{vec{2,3},vec{5,7},vec{2,3}} });
-    CHECK(b == Sequence { vec{vec{8,9},vec{2,1},vec{7,6}} });
-  }
-
-  SUBCASE("order 3") {
-    a = vec{vec{vec{2,2},vec{3,3}}, vec{vec{5,5},vec{7,7}}};
-    b = vec{vec{vec{8,8},vec{9,9}}, vec{vec{2,2},vec{1,1}}, vec{vec{7,7},vec{6,6}}};
-    normalise(a,b);
-
-    CHECK(a == Sequence { vec{vec{vec{2,2},vec{3,3}}, vec{vec{5,5},vec{7,7}}, vec{vec{2,2},vec{3,3}}}});
-    CHECK(b == Sequence { vec{vec{vec{8,8},vec{9,9}}, vec{vec{2,2},vec{1,1}}, vec{vec{7,7},vec{6,6}}}});
-  }
-
-  SUBCASE("order delta 1, different length") {
-    a = vec{6, 7};
-    b = vec{8, vec{3, 4}, 1};
-    normalise(a,b);
-
-    CHECK(a == Sequence { vec{vec{6,7},vec{6,7},vec{6,7}} });
-    CHECK(b == Sequence { vec{vec{8,8},vec{3,4},vec{1,1}} });
-  }
-
-  SUBCASE("order delta 1, same length") {
-    a = vec{1,2,3};
-    b = vec{5, vec{3,4}, vec{7,6}};
-    normalise(a,b);
-
-    CHECK(a == Sequence { vec{vec{1,2,3},vec{1,2,3},vec{1,2,3}} });
-    CHECK(b == Sequence { vec{vec{5,5,5},vec{3,4,3},vec{7,6,7}} });
-  }
-
-  SUBCASE("order delta 2, same length") {
-    a = vec{1,2,3};
-    b = vec{5, vec{vec{3,0},4}, vec{7,6}};
-    normalise(a,b);
-
-    CHECK(a == Sequence { vec{ vec{vec{1,2,3},vec{1,2,3},vec{1,2,3}},
-                               vec{vec{1,2,3},vec{1,2,3},vec{1,2,3}},
-                               vec{vec{1,2,3},vec{1,2,3},vec{1,2,3}}
-                          }
-                        });
-    CHECK(b == Sequence { vec{ vec{vec{5,5,5},vec{5,5,5},vec{5,5,5}},
-                               vec{vec{3,0,3},vec{4,4,4},vec{3,0,3}},
-                               vec{vec{7,6,7},vec{7,6,7},vec{7,6,7}}
-                          }
-                        });
-  }
-
-}
-
 namespace sequence_operator {
   Sequence plus(impl::wrapper& a, impl::wrapper& b) {
     return a.data + b.data;
@@ -672,6 +467,7 @@ namespace sequence_operator {
 // Pass functions using template params for now,
 // maybe change to function_view from here later.
 // https://vittorioromeo.info/index/blog/passing_functions_to_functions.htm
+/*
 template <typename TF>
 Sequence transpose_distribute(Sequence& a, Sequence& b, TF&& func) {
   int _order = order(a);
@@ -731,7 +527,8 @@ TEST_CASE("testing transpose-distribute") {
     CHECK(result == Sequence { vec{-3,9,6} });
   }
 }
-
+*/
+/*
 template <typename TF>
 Sequence ntd(Sequence& a, Sequence& b, TF&& func) {
   normalise(a,b);
@@ -749,6 +546,7 @@ TEST_CASE("testing transpose-distribute") {
     CHECK(result == Sequence { vec{-3,9,6} });
   }
 }
+*/
 /*
 int main() {
   //Sequence a = vec{2,3,vec{4,5}};
