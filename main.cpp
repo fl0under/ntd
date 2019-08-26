@@ -10,6 +10,7 @@
 #include <typeinfo>
 #include <type_traits>
 #include <variant>
+#include <initializer_list>
 #include "doctest.h"
 #include "prettyprint.hpp"
 
@@ -175,23 +176,6 @@ int order(const Sequence &v) {
     }, v);
 }
 
-// Get the max length at each level/depth
-void get_length(std::vector<int>& lengths, int order, Sequence& s) {
-  if (std::holds_alternative<int>(s)) return;
-  if (order > lengths.size()) lengths.push_back(0);
-  int n = std::get<vec>(s).size();
-  if (n > lengths.at(order-1))
-    lengths.at(order-1) = n;
-  for (auto& x : std::get<vec>(s))
-    get_length(lengths, order+1, x.data);
-}
-
-std::vector<int> get_lengths(Sequence &s) {
-  std::vector<int> lengths {0};
-  get_length(lengths, 1, s);
-  return lengths;
-}
-
 template<typename T>
 int max_vector_size(std::vector<T> v) {
   return v.size();
@@ -226,17 +210,69 @@ TEST_CASE("finding maximum vector length") {
   }
 }
 
-template<typename T, typename... Targs>
-std::vector<int> get_lengths(Sequence &s, Targs... args) {
-  std::vector<int> lengths {};
-  // Pick out the biggest of each
-  get_lengths(s);
+// Get the max length at each level/depth
+void get_length(std::vector<int>& lengths, int order, const Sequence s) {
+  if (std::holds_alternative<int>(s)) return;
+  if (order > lengths.size()) lengths.push_back(0);
+  int n = std::get<vec>(s).size();
+  if (n > lengths.at(order-1))
+    lengths.at(order-1) = n;
+  for (auto& x : std::get<vec>(s))
+    get_length(lengths, order+1, x.data);
+}
+
+std::vector<int> get_lengths(const Sequence s) {
+  std::vector<int> lengths {0};
+  get_length(lengths, 1, s);
+  return lengths;
+}
+
+std::vector<int> get_lengths(std::initializer_list<Sequence> l) {
+  std::vector<std::vector<int>> all_lengths {};
+
+  // Get the length vectors of each Sequence in the list and store them
+  std::transform(l.begin(), l.end(), std::back_inserter(all_lengths),
+      [](const Sequence s) -> std::vector<int> { return get_lengths(s); });
+
+  // Find the longest length vector
+  auto max_length_it = std::max_element(all_lengths.begin(), all_lengths.end(),
+      [](std::vector<int>& a, std::vector<int>& b) -> bool { 
+        return (a.size() < b.size()); 
+      });
+  int max_length = (*max_length_it).size();
+  
+  std::vector<int> lengths (max_length);
+
+  // Find the longest Sequence at each level
+  for (const auto& v : all_lengths) {
+    for (int i{0}; i < v.size(); ++i) {
+      if (v.at(i) > lengths.at(i))
+        lengths.at(i) = v.at(i);
+    }
+  }
   return lengths;
 }
 
 
 TEST_CASE("getting lengths") {
-  Sequence a,b;
+  Sequence a,b,c,d;
+
+  SUBCASE("multiple lengths") {
+    a = vec{2,3,4};
+    b = vec{3,vec{2,4}};
+    c = vec{7};
+    auto lengths = get_lengths({a,b,c});
+    CHECK(lengths == std::vector<int>{3,2});
+  }
+
+  SUBCASE("multiple lengths") {
+    a = vec{2,3,4,6,7,8,3};
+    b = vec{3,vec{2,4}};
+    c = vec{7};
+    d = vec{vec{vec{2,8,4}}};
+    auto lengths = get_lengths({a,b,d,c});
+    CHECK(lengths == std::vector<int>{7,2,3});
+  }
 
   SUBCASE("order 1") {
     a = vec{2,3,4};
