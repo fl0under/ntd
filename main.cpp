@@ -547,26 +547,3 @@ TEST_CASE("testing transpose-distribute") {
   }
 }
 */
-/*
-int main() {
-  //Sequence a = vec{2,3,vec{4,5}};
-  //auto lengths = get_lengths(a);
-  //for (auto& x : lengths) std::cout << x << ' '; std::cout << '\n';
-
-  // [2,3]
-  //std::vector<std::vector<my_var>> root1 = {{2,3}};
-  // [2,[4],3]
-  //std::vector<std::vector<my_var>> root2 = { {2,3} };
-  // [2,3]
-  //std::vector<std::vector<my_var>> root = {{2,3}};
-  //my_pointer mm ({2,6}); 
-  struct my_wrap;
-  using vvar = std::variant<int, my_wrap>;
-  struct my_wrap { vvar data;};
-  std::vector<std::vector<int,my_wrap>> root;
-  root.push_back(std::vector<int,my_wrap>{});
-  root[0].push_back(2);
-  root[0].push_back(std::vector<std::variant<int, my_wrap>>
-
-}
-*/
