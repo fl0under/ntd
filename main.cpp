@@ -103,6 +103,13 @@ namespace impl {
 using impl::Sequence;
 using impl::vec;
 
+// Normalised Sequence data structure
+struct Sequence_Normalised {
+  std::vector<int> data;
+  std::vector<int> lengths;
+  Sequence_Normalised(std::vector<int> d, std::vector<int> l)
+    : data{d}, lengths{l} {}
+};
 
 // NTD: Normalise Transpose Distribute
 
@@ -279,12 +286,12 @@ void copy_elements(
   }
 }
 
-std::vector<int> normalise(Sequence s, std::vector<int> lengths) {
+Sequence_Normalised normalise(Sequence s, std::vector<int> lengths) {
   std::vector<int> norm_s ( std::accumulate(
         lengths.begin(), lengths.end(), 1, std::multiplies<int>()) );
   int start_pos {0};
   copy_elements(norm_s, lengths, 1, s, start_pos);
-  return norm_s;
+  return Sequence_Normalised(norm_s, lengths);
 }
 
 TEST_CASE("normalise") {
@@ -294,21 +301,24 @@ TEST_CASE("normalise") {
     a = vec{2,3,4};
     auto lengths = get_lengths(a);
     auto normalised = normalise(a, lengths);
-    CHECK(normalised == std::vector<int>{2,3,4});
+    CHECK(normalised.data == std::vector<int>{2,3,4});
+    CHECK(normalised.lengths == std::vector<int>{3});
   }
 
   SUBCASE("order 2") {
     a = vec{2,3,vec{7,8},4};
     auto lengths = get_lengths(a);
     auto normalised = normalise(a, lengths);
-    CHECK(normalised == std::vector<int>{2,2,3,3,7,8,4,4});
+    CHECK(normalised.data == std::vector<int>{2,2,3,3,7,8,4,4});
+    CHECK(normalised.lengths == std::vector<int>{4,2});
   }
 
   SUBCASE("order 3") {
     a = vec{vec{6,9,3},3,vec{7,8},4};
     auto lengths = get_lengths(a);
     auto normalised = normalise(a, lengths);
-    CHECK(normalised == std::vector<int>{6,9,3,3,3,3,7,8,7,4,4,4});
+    CHECK(normalised.data == std::vector<int>{6,9,3,3,3,3,7,8,7,4,4,4});
+    CHECK(normalised.lengths == std::vector<int>{4,3});
   }
 }
 
@@ -321,8 +331,11 @@ TEST_CASE("testing normalise, multiple Sequences") {
     auto lengths = get_lengths({a,b});
     auto norm_a = normalise(a, lengths);
     auto norm_b = normalise(b, lengths);
-    CHECK(norm_a == std::vector<int>{3,4,3});
-    CHECK(norm_b == std::vector<int>{7,5,8});
+
+    CHECK(norm_a.data == std::vector<int>{3,4,3});
+    CHECK(norm_b.data == std::vector<int>{7,5,8});
+    CHECK(norm_a.lengths == std::vector<int>{3});
+    CHECK(norm_b.lengths == std::vector<int>{3});
   }
 
   SUBCASE("order 1") {
@@ -331,8 +344,10 @@ TEST_CASE("testing normalise, multiple Sequences") {
     auto lengths = get_lengths({a,b});
     auto norm_a = normalise(a, lengths);
     auto norm_b = normalise(b, lengths);
-    CHECK(norm_a == std::vector<int>{3,3,5,6,4,4,3,3});
-    CHECK(norm_b == std::vector<int>{7,7,5,5,8,8,1,1});
+    CHECK(norm_a.data == std::vector<int>{3,3,5,6,4,4,3,3});
+    CHECK(norm_b.data == std::vector<int>{7,7,5,5,8,8,1,1});
+    CHECK(norm_a.lengths == std::vector<int>{4,2});
+    CHECK(norm_b.lengths == std::vector<int>{4,2});
   }
 
   SUBCASE("order 1, same length") {
@@ -342,8 +357,10 @@ TEST_CASE("testing normalise, multiple Sequences") {
     auto norm_a = normalise(a, lengths);
     auto norm_b = normalise(b, lengths);
 
-    CHECK(norm_a == std::vector<int>{2,3,4} );
-    CHECK(norm_b == std::vector<int>{3,2,6} );
+    CHECK(norm_a.data == std::vector<int>{2,3,4} );
+    CHECK(norm_b.data == std::vector<int>{3,2,6} );
+    CHECK(norm_a.lengths == std::vector<int>{3});
+    CHECK(norm_b.lengths == std::vector<int>{3});
   }
 
   SUBCASE("order 2, same sequence") {
@@ -351,7 +368,8 @@ TEST_CASE("testing normalise, multiple Sequences") {
     auto lengths = get_lengths(a);
     auto norm_a = normalise(a, lengths);
 
-    CHECK(norm_a == std::vector{3,2,1,1} );
+    CHECK(norm_a.data == std::vector{3,2,1,1} );
+    CHECK(norm_a.lengths == std::vector<int>{2,2});
   }
   
   SUBCASE("order 1") {
@@ -361,8 +379,10 @@ TEST_CASE("testing normalise, multiple Sequences") {
     auto norm_a = normalise(a, lengths);
     auto norm_b = normalise(b, lengths);
 
-    CHECK(norm_a == std::vector<int>{1,2,3,4,5} );
-    CHECK(norm_b == std::vector<int>{6,7,6,7,6} );
+    CHECK(norm_a.data == std::vector<int>{1,2,3,4,5} );
+    CHECK(norm_b.data == std::vector<int>{6,7,6,7,6} );
+    CHECK(norm_a.lengths == std::vector<int>{5});
+    CHECK(norm_b.lengths == std::vector<int>{5});
   }
 
   SUBCASE("order 2") {
@@ -372,8 +392,10 @@ TEST_CASE("testing normalise, multiple Sequences") {
     auto norm_a = normalise(a, lengths);
     auto norm_b = normalise(b, lengths);
 
-    CHECK(norm_a == std::vector{ 2,3,5,7,2,3 });
-    CHECK(norm_b == std::vector{ 8,9,2,1,7,6 });
+    CHECK(norm_a.data == std::vector{ 2,3,5,7,2,3 });
+    CHECK(norm_b.data == std::vector{ 8,9,2,1,7,6 });
+    CHECK(norm_a.lengths == std::vector<int>{3,2});
+    CHECK(norm_b.lengths == std::vector<int>{3,2});
   }
 
   SUBCASE("order 3") {
@@ -383,8 +405,10 @@ TEST_CASE("testing normalise, multiple Sequences") {
     auto norm_a = normalise(a, lengths);
     auto norm_b = normalise(b, lengths);
 
-    CHECK(norm_a == std::vector{ 2,2,3,3,5,5,7,7,2,2,3,3 });
-    CHECK(norm_b == std::vector{ 8,8,9,9,2,2,1,1,7,7,6,6 });
+    CHECK(norm_a.data == std::vector{ 2,2,3,3,5,5,7,7,2,2,3,3 });
+    CHECK(norm_b.data == std::vector{ 8,8,9,9,2,2,1,1,7,7,6,6 });
+    CHECK(norm_a.lengths == std::vector<int>{3,2,2});
+    CHECK(norm_b.lengths == std::vector<int>{3,2,2});
   }
 
   SUBCASE("order delta 1, different length") {
@@ -394,8 +418,10 @@ TEST_CASE("testing normalise, multiple Sequences") {
     auto norm_a = normalise(a, lengths);
     auto norm_b = normalise(b, lengths);
 
-    CHECK(norm_a == std::vector{ 6,6,7,7,6,6 });
-    CHECK(norm_b == std::vector{ 8,8,3,4,1,1 });
+    CHECK(norm_a.data == std::vector{ 6,6,7,7,6,6 });
+    CHECK(norm_b.data == std::vector{ 8,8,3,4,1,1 });
+    CHECK(norm_a.lengths == std::vector<int>{3,2});
+    CHECK(norm_b.lengths == std::vector<int>{3,2});
   }
 
   SUBCASE("order delta 1, different length") {
@@ -405,8 +431,10 @@ TEST_CASE("testing normalise, multiple Sequences") {
     auto norm_a = normalise(a, lengths);
     auto norm_b = normalise(b, lengths);
 
-    CHECK(norm_a == std::vector{ 1,2,3,4,5,6,7,8,9 });
-    CHECK(norm_b == std::vector{ 2,4,5,2,4,5,2,4,5 });
+    CHECK(norm_a.data == std::vector{ 1,2,3,4,5,6,7,8,9 });
+    CHECK(norm_b.data == std::vector{ 2,4,5,2,4,5,2,4,5 });
+    CHECK(norm_a.lengths == std::vector<int>{3,3});
+    CHECK(norm_b.lengths == std::vector<int>{3,3});
   }
 
   SUBCASE("order delta 1, same length") {
@@ -416,8 +444,10 @@ TEST_CASE("testing normalise, multiple Sequences") {
     auto norm_a = normalise(a, lengths);
     auto norm_b = normalise(b, lengths);
 
-    CHECK(norm_a == std::vector{ 1,1,2,2,3,3 });
-    CHECK(norm_b == std::vector{ 5,5,3,4,7,6 });
+    CHECK(norm_a.data == std::vector{ 1,1,2,2,3,3 });
+    CHECK(norm_b.data == std::vector{ 5,5,3,4,7,6 });
+    CHECK(norm_a.lengths == std::vector<int>{3,2});
+    CHECK(norm_b.lengths == std::vector<int>{3,2});
   }
 
   SUBCASE("order delta 2, same length") {
@@ -427,14 +457,16 @@ TEST_CASE("testing normalise, multiple Sequences") {
     auto norm_a = normalise(a, lengths);
     auto norm_b = normalise(b, lengths);
 
-    CHECK(norm_a == std::vector{ 1,1,1,1,
+    CHECK(norm_a.data == std::vector{ 1,1,1,1,
                                  2,2,2,2,
                                  3,3,3,3 }
                         );
-    CHECK(norm_b == std::vector{ 5,5,5,5,
+    CHECK(norm_b.data == std::vector{ 5,5,5,5,
                                  3,0,4,4,
                                  7,7,6,6 }
                         );
+    CHECK(norm_a.lengths == std::vector<int>{3,2,2});
+    CHECK(norm_b.lengths == std::vector<int>{3,2,2});
   }
 
   // Example from "SequenceL provides a different way to view programming"
@@ -447,9 +479,12 @@ TEST_CASE("testing normalise, multiple Sequences") {
     auto norm_b = normalise(b, lengths);
     auto norm_c = normalise(c, lengths);
 
-    CHECK(norm_a == std::vector{ 2,7,8, 4,8,4, 2,7,8 });
-    CHECK(norm_b == std::vector{ 6,6,6, 6,6,6, 6,6,6 });
-    CHECK(norm_c == std::vector{ 5,5,5, 3,6,9, 2,2,2 });
+    CHECK(norm_a.data == std::vector{ 2,7,8, 4,8,4, 2,7,8 });
+    CHECK(norm_b.data == std::vector{ 6,6,6, 6,6,6, 6,6,6 });
+    CHECK(norm_c.data == std::vector{ 5,5,5, 3,6,9, 2,2,2 });
+    CHECK(norm_a.lengths == std::vector<int>{3,3});
+    CHECK(norm_b.lengths == std::vector<int>{3,3});
+    CHECK(norm_c.lengths == std::vector<int>{3,3});
   }
 }
 
