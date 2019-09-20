@@ -30,29 +30,29 @@ decltype(auto) visit_recursively(Visitor&& visitor, Variant variant) {
 namespace impl {
   struct wrapper;
   using vec = std::vector<wrapper>;
-  using Sequence = std::variant<int, vec>;
+  using Raw_Sequence = std::variant<int, vec>;
 
   struct wrapper {
-    Sequence data;
+    Raw_Sequence data;
 
     template <typename... Ts>
     wrapper(Ts&&... xs)
       : data{std::forward<Ts>(xs)...} {}
   };
 
-  Sequence operator+ (Sequence lhs, Sequence rhs) {
-    return std::visit( [](auto const &l, auto const &r) -> Sequence {
+  Raw_Sequence operator+ (Raw_Sequence lhs, Raw_Sequence rhs) {
+    return std::visit( [](auto const &l, auto const &r) -> Raw_Sequence {
         return l + r;
     }, lhs, rhs);
   }
 
-  Sequence operator* (Sequence lhs, Sequence rhs) {
-    return std::visit( [](auto const &l, auto const &r) -> Sequence {
+  Raw_Sequence operator* (Raw_Sequence lhs, Raw_Sequence rhs) {
+    return std::visit( [](auto const &l, auto const &r) -> Raw_Sequence {
         return l * r;
     }, lhs, rhs);
   }
 
-  bool operator== (Sequence lhs, Sequence rhs) {
+  bool operator== (Raw_Sequence lhs, Raw_Sequence rhs) {
     // Both vecs
     if (std::holds_alternative<vec>(lhs) && std::holds_alternative<vec>(rhs)) {
       // Not same size can't be equivalent
@@ -76,12 +76,12 @@ namespace impl {
     }
   }
 
-  bool operator!= (Sequence lhs, Sequence rhs) {
+  bool operator!= (Raw_Sequence lhs, Raw_Sequence rhs) {
     return !(lhs == rhs);
   }
 
-  // Enable printing of a Sequence
-  std::ostream &operator<< (std::ostream &os, Sequence s) {
+  // Enable printing of a Raw_Sequence
+  std::ostream &operator<< (std::ostream &os, Raw_Sequence s) {
     std::string seq_string{};
     struct build_string {
       std::string& str;
@@ -100,14 +100,14 @@ namespace impl {
     return os << seq_string;
   }
 }
-using impl::Sequence;
+using impl::Raw_Sequence;
 using impl::vec;
 
-// Normalised Sequence data structure
-struct Sequence_Normalised {
+// Normalised Raw_Sequence data structure
+struct Sequence {
   std::vector<int> data;
   std::vector<int> lengths;
-  Sequence_Normalised(std::vector<int> d, std::vector<int> l)
+  Sequence(std::vector<int> d, std::vector<int> l)
     : data{d}, lengths{l} {}
 };
 
@@ -138,13 +138,13 @@ constexpr void repeat_elements(T &a, int b) {
 }
 
 
-void clone_elements(Sequence &s, int n) {
+void clone_elements(Raw_Sequence &s, int n) {
   if (n < 2) return;
-  s = Sequence {vec (n, s)};
+  s = Raw_Sequence {vec (n, s)};
 }
 
 // Get the max length at each level/depth
-void get_length(std::vector<int>& lengths, int order, const Sequence s) {
+void get_length(std::vector<int>& lengths, int order, const Raw_Sequence s) {
   if (std::holds_alternative<int>(s)) return;
   if (order > lengths.size()) lengths.push_back(0);
   int n = std::get<vec>(s).size();
@@ -154,18 +154,18 @@ void get_length(std::vector<int>& lengths, int order, const Sequence s) {
     get_length(lengths, order+1, x.data);
 }
 
-std::vector<int> get_lengths(const Sequence s) {
+std::vector<int> get_lengths(const Raw_Sequence s) {
   std::vector<int> lengths {0};
   get_length(lengths, 1, s);
   return lengths;
 }
 
-std::vector<int> get_lengths(std::initializer_list<Sequence> l) {
+std::vector<int> get_lengths(std::initializer_list<Raw_Sequence> l) {
   std::vector<std::vector<int>> all_lengths {};
 
-  // Get the length vectors of each Sequence in the list and store them
+  // Get the length vectors of each Raw_Sequence in the list and store them
   std::transform(l.begin(), l.end(), std::back_inserter(all_lengths),
-      [](const Sequence s) -> std::vector<int> { return get_lengths(s); });
+      [](const Raw_Sequence s) -> std::vector<int> { return get_lengths(s); });
 
   // Find the longest length vector
   auto max_length_it = std::max_element(all_lengths.begin(), all_lengths.end(),
@@ -176,7 +176,7 @@ std::vector<int> get_lengths(std::initializer_list<Sequence> l) {
   
   std::vector<int> lengths (max_length);
 
-  // Find the longest Sequence at each level
+  // Find the longest Raw_Sequence at each level
   for (const auto& v : all_lengths) {
     for (int i{0}; i < v.size(); ++i) {
       if (v.at(i) > lengths.at(i))
@@ -188,7 +188,7 @@ std::vector<int> get_lengths(std::initializer_list<Sequence> l) {
 
 
 TEST_CASE("getting lengths") {
-  Sequence a,b,c,d;
+  Raw_Sequence a,b,c,d;
 
   SUBCASE("order 1") {
     a = vec{2,3,4};
@@ -247,7 +247,7 @@ TEST_CASE("getting lengths") {
 }
 
 void copy_elements(
-    std::vector<int>& norm_s, const std::vector<int>& lengths, int order, Sequence s, int& start_pos) {
+    std::vector<int>& norm_s, const std::vector<int>& lengths, int order, Raw_Sequence s, int& start_pos) {
 
   bool done {false};
   int n{0};
@@ -286,16 +286,16 @@ void copy_elements(
   }
 }
 
-Sequence_Normalised normalise(Sequence s, std::vector<int> lengths) {
+Sequence normalise(Raw_Sequence s, std::vector<int> lengths) {
   std::vector<int> norm_s ( std::accumulate(
         lengths.begin(), lengths.end(), 1, std::multiplies<int>()) );
   int start_pos {0};
   copy_elements(norm_s, lengths, 1, s, start_pos);
-  return Sequence_Normalised(norm_s, lengths);
+  return Sequence(norm_s, lengths);
 }
 
 TEST_CASE("normalise") {
-  Sequence a;
+  Raw_Sequence a;
 
   SUBCASE("order 1") {
     a = vec{2,3,4};
@@ -322,8 +322,8 @@ TEST_CASE("normalise") {
   }
 }
 
-TEST_CASE("testing normalise, multiple Sequences") {
-  Sequence a,b,c;
+TEST_CASE("testing normalise, multiple Raw_Sequences") {
+  Raw_Sequence a,b,c;
 
   SUBCASE("order 1") {
     a = vec{3,4};
@@ -469,7 +469,7 @@ TEST_CASE("testing normalise, multiple Sequences") {
     CHECK(norm_b.lengths == std::vector<int>{3,2,2});
   }
 
-  // Example from "SequenceL provides a different way to view programming"
+  // Example from "Raw_SequenceL provides a different way to view programming"
   SUBCASE("order delta 2, different length") {
     a = vec{ vec{2,7,8}, vec{4,8} };
     b = 6;
@@ -490,11 +490,11 @@ TEST_CASE("testing normalise, multiple Sequences") {
 
 
 namespace sequence_operator {
-  Sequence plus(impl::wrapper& a, impl::wrapper& b) {
+  Raw_Sequence plus(impl::wrapper& a, impl::wrapper& b) {
     return a.data + b.data;
   }
 
-  Sequence multiplies(impl::wrapper& a, impl::wrapper& b) {
+  Raw_Sequence multiplies(impl::wrapper& a, impl::wrapper& b) {
     return a.data * b.data;
   }
 }
@@ -504,9 +504,9 @@ namespace sequence_operator {
 // https://vittorioromeo.info/index/blog/passing_functions_to_functions.htm
 /*
 template <typename TF>
-Sequence transpose_distribute(Sequence& a, Sequence& b, TF&& func) {
+Raw_Sequence transpose_distribute(Raw_Sequence& a, Raw_Sequence& b, TF&& func) {
   int _order = order(a);
-  Sequence result = vec{};
+  Raw_Sequence result = vec{};
 
   if (_order == 1) {
     std::transform(
@@ -528,14 +528,14 @@ Sequence transpose_distribute(Sequence& a, Sequence& b, TF&& func) {
 
 
 TEST_CASE("testing transpose-distribute") {
-  Sequence a,b,result;
+  Raw_Sequence a,b,result;
 
   SUBCASE("order 1, plus") {
     a = vec{2,3,4};
     b = vec{3,2,6};
     result = transpose_distribute(a,b, sequence_operator::plus);
 
-    CHECK(result == Sequence { vec{5,5,10} });
+    CHECK(result == Raw_Sequence { vec{5,5,10} });
   }
 
   SUBCASE("order 1, multiply") {
@@ -543,7 +543,7 @@ TEST_CASE("testing transpose-distribute") {
     b = vec{3,2,6};
     result = transpose_distribute(a,b, sequence_operator::multiplies);
 
-    CHECK(result == Sequence { vec{6,6,24} });
+    CHECK(result == Raw_Sequence { vec{6,6,24} });
   }
 
   SUBCASE("order 2, multiply") {
@@ -551,7 +551,7 @@ TEST_CASE("testing transpose-distribute") {
     b = vec{vec{5,6},vec{7,8}};
     result = transpose_distribute(a, b, sequence_operator::multiplies);
 
-    CHECK(result == Sequence { vec{vec{5,12},vec{21,32}} });
+    CHECK(result == Raw_Sequence { vec{vec{5,12},vec{21,32}} });
   }
 
   SUBCASE("order 1, multiply") {
@@ -559,26 +559,26 @@ TEST_CASE("testing transpose-distribute") {
     b = vec{-1,3,2};
     result = transpose_distribute(a, b, sequence_operator::multiplies);
 
-    CHECK(result == Sequence { vec{-3,9,6} });
+    CHECK(result == Raw_Sequence { vec{-3,9,6} });
   }
 }
 */
 /*
 template <typename TF>
-Sequence ntd(Sequence& a, Sequence& b, TF&& func) {
+Raw_Sequence ntd(Raw_Sequence& a, Raw_Sequence& b, TF&& func) {
   normalise(a,b);
   return transpose_distribute(a,b,func);
 }
 
 TEST_CASE("testing transpose-distribute") {
-  Sequence a,b,result;
+  Raw_Sequence a,b,result;
 
   SUBCASE("order delta 1, multiply") {
     a = 3;
     b = vec{-1,3,2};
     result = ntd(a, b, sequence_operator::multiplies);
 
-    CHECK(result == Sequence { vec{-3,9,6} });
+    CHECK(result == Raw_Sequence { vec{-3,9,6} });
   }
 }
 */
