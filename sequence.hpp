@@ -36,46 +36,6 @@ namespace impl {
       : data{std::forward<Ts>(xs)...} {}
   };
 
-  Raw_Sequence operator+ (Raw_Sequence lhs, Raw_Sequence rhs) {
-    return std::visit( [](auto const &l, auto const &r) -> Raw_Sequence {
-        return l + r;
-    }, lhs, rhs);
-  }
-
-  Raw_Sequence operator* (Raw_Sequence lhs, Raw_Sequence rhs) {
-    return std::visit( [](auto const &l, auto const &r) -> Raw_Sequence {
-        return l * r;
-    }, lhs, rhs);
-  }
-
-  bool operator== (Raw_Sequence lhs, Raw_Sequence rhs) {
-    // Both vecs
-    if (std::holds_alternative<vec>(lhs) && std::holds_alternative<vec>(rhs)) {
-      // Not same size can't be equivalent
-      if (std::get<vec>(lhs).size() != std::get<vec>(rhs).size())
-        return false;
-      else {
-        std::vector<bool> eq {};
-        std::transform(std::get<vec>(lhs).begin(),
-                       std::get<vec>(lhs).end(),
-                       std::get<vec>(rhs).begin(),
-                       std::back_inserter(eq),
-                       [](const auto& l, const auto& r) -> bool {
-                         return l.data == r.data; }
-            );
-        return std::all_of(eq.begin(), eq.end(), [](bool b){ return b;});
-      }
-    } else if (std::holds_alternative<int>(lhs) && std::holds_alternative<int>(rhs)) {
-      return std::get<int>(lhs) == std::get<int>(rhs);
-    } else {
-      return false;
-    }
-  }
-
-  bool operator!= (Raw_Sequence lhs, Raw_Sequence rhs) {
-    return !(lhs == rhs);
-  }
-
   // Enable printing of a Raw_Sequence
   std::ostream &operator<< (std::ostream &os, Raw_Sequence s) {
     std::string seq_string{};
@@ -231,16 +191,6 @@ Sequence normalise(Raw_Sequence s, std::vector<int> lengths) {
   return Sequence(norm_s, lengths);
 }
 
-
-namespace sequence_operator {
-  Raw_Sequence plus(impl::wrapper& a, impl::wrapper& b) {
-    return a.data + b.data;
-  }
-
-  Raw_Sequence multiplies(impl::wrapper& a, impl::wrapper& b) {
-    return a.data * b.data;
-  }
-}
 
 // Pass functions using template params for now,
 // maybe change to function_view from here later.
