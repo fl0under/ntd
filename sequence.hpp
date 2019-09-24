@@ -2,10 +2,7 @@
 #include <numeric>
 #include <iostream>
 #include <algorithm>
-#include <iterator>
 #include <functional>
-#include <typeinfo>
-#include <type_traits>
 #include <variant>
 #include <initializer_list>
 #include "prettyprint.hpp"
@@ -214,4 +211,45 @@ Sequence transpose_distribute(Raw_Sequence a, Raw_Sequence b, TF&& func) {
 
   return Sequence(result, lengths);
 }
+/*
+template <typename T, typename... Args>
+int minimum(T &a, Args... args) {
+  return std::min(int(size(a)), minimum(args...));
+}
 
+template <typename T, typename... Args>
+int plus(T &a, Args... args) {
+  return std::plus<T>( a,plus(args...) );
+}
+
+template <typename TF>
+Sequence transpose_distribute(std::initializer_list<Raw_Sequence> l, TF&& func) {
+  // normalise
+  auto lengths = get_lengths(l);
+  std::array<Sequence, l.size()> seqs;
+  std::transform(
+      l.begin(),
+      l.end(),
+      seqs.begin(),
+      [&](Raw_Sequence s) { return normalise(s, lengths); }
+      );
+
+  std::vector<int> result (seqs[0].data.size());
+
+  // transpose distribute
+  // *(l.begin()+1)
+
+  // Transpose column
+  std::
+  
+  std::transform(
+      norm_a.data.begin(), 
+      norm_a.data.end(),
+      norm_b.data.begin(),
+      result.begin(),
+      plus(
+      );
+
+  return Sequence(result, lengths);
+}
+*/
