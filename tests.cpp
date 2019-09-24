@@ -294,4 +294,28 @@ TEST_CASE("testing transpose-distribute") {
 
     CHECK(result.data == std::vector{ -3,9,6 });
   }
+
+  SUBCASE("order delta 1, multiply") {
+    a = vec{4,5,6,7};
+    b = 10;
+    auto result = transpose_distribute(a, b, std::multiplies<int>());
+
+    CHECK(result.data == std::vector{ 40,50,60,70 });
+  }
+
+  SUBCASE("order delta 2, multiply") {
+    a = vec{ vec{2,3}, vec{4,6} };
+    b = 10;
+    auto result = transpose_distribute(a, b, std::multiplies<int>());
+
+    CHECK(result.data == std::vector{ 20,30,40,60 });
+  }
+
+  SUBCASE("order delta 2, multiply") {
+    a = vec{ vec{2,3}, vec{4,6,7} };
+    b = 10;
+    auto result = transpose_distribute(a, b, std::multiplies<int>());
+
+    CHECK(result.data == std::vector{ 20,30,20,40,60,70 });
+  }
 }

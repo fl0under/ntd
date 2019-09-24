@@ -211,6 +211,8 @@ Sequence transpose_distribute(Raw_Sequence a, Raw_Sequence b, TF&& func) {
 
   return Sequence(result, lengths);
 }
+
+
 /*
 template <typename T, typename... Args>
 int minimum(T &a, Args... args) {
