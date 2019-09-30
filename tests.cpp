@@ -4,6 +4,22 @@
 #include "doctest.h"
 #include "sequence.hpp"
 
+TEST_CASE("repeating elements") {
+  std::vector<int> a;
+
+  SUBCASE("whole vector") {
+    a = {1,2,3,4,5};
+    repeat_elements(a, 8, 0, a.size() );
+    CHECK(a == std::vector<int>{1,2,3,4,5,1,2,3});
+  }
+
+  SUBCASE("part of vector") {
+    a = {1,2,3,4,5};
+    repeat_elements(a, 5, 1, a.size()-2 );
+    CHECK(a == std::vector<int>{1,2,3,2,3,2,4,5});
+  }
+}
+
 TEST_CASE("getting lengths") {
   Raw_Sequence a,b,c,d;
 
@@ -63,6 +79,23 @@ TEST_CASE("getting lengths") {
   }
 }
 
+TEST_CASE("Testing get lengths for Sequence") {
+  Sequence a,b,c,d;
+
+  SUBCASE("order 1") {
+    a.lengths = std::vector<int> {2};
+    b.lengths = std::vector<int> {4};
+    auto lengths = get_lengths({a,b});
+    CHECK(lengths == std::vector<int>{4});
+  }
+
+  SUBCASE("order 2") {
+    a.lengths = std::vector<int> {2,5};
+    b.lengths = std::vector<int> {4,3};
+    auto lengths = get_lengths({a,b});
+    CHECK(lengths == std::vector<int>{4,5});
+  }
+}
 
 TEST_CASE("normalise") {
   Raw_Sequence a;
@@ -259,6 +292,57 @@ TEST_CASE("testing normalise, multiple Raw_Sequences") {
   }
 }
 
+TEST_CASE("normalise Sequence") {
+  Sequence a;
+
+  SUBCASE("order 1") {
+    a.data = {2,3,4};
+    a.lengths = {3};
+    auto normalised = normalise(a, std::vector<int>{5});
+    CHECK(normalised.data == std::vector<int>{2,3,4,2,3});
+    CHECK(normalised.lengths == std::vector<int>{5});
+  }
+
+  SUBCASE("order 2") {
+    a.data = {2,2,3,3,7,8,4,4};
+    a.lengths = {4,2};
+    auto normalised = normalise(a, std::vector<int>{4,3});
+    CHECK(normalised.data == std::vector<int>{2,2,2,3,3,3,7,8,7,4,4,4});
+    CHECK(normalised.lengths == std::vector<int>{4,3});
+  }
+
+  SUBCASE("order 2") {
+    a.data = {2,2,3,3,7,8,4,4};
+    a.lengths = {4,2};
+    auto normalised = normalise(a, std::vector<int>{5,3});
+    CHECK(normalised.data == std::vector<int>{2,2,2,3,3,3,7,8,7,4,4,4,2,2,2});
+    CHECK(normalised.lengths == std::vector<int>{5,3});
+  }
+
+  SUBCASE("order 1 plus one") {
+    a.data = {2,3,4};
+    a.lengths = {3};
+    auto normalised = normalise(a, std::vector<int>{2,3});
+    CHECK(normalised.data == std::vector<int>{2,3,4,2,3,4});
+    CHECK(normalised.lengths == std::vector<int>{2,3});
+  }
+
+  SUBCASE("order 3") {
+    a.data = {4,5,6,4,5,6};
+    a.lengths = {2,3,1};
+    auto normalised = normalise(a, std::vector<int>{2,3,2});
+    CHECK(normalised.data == std::vector<int>{4,4,5,5,6,6,4,4,5,5,6,6});
+    CHECK(normalised.lengths == std::vector<int>{2,3,2});
+  }
+
+  SUBCASE("order 1, ignore normalise to smaller size") {
+    a.data = {4,5,6};
+    a.lengths = {3};
+    auto normalised = normalise(a, std::vector<int>{2});
+    CHECK(normalised.data == std::vector<int>{4,5,6});
+    CHECK(normalised.lengths == std::vector<int>{3});
+  }
+}
 
 TEST_CASE("testing transpose-distribute") {
   Raw_Sequence a,b;

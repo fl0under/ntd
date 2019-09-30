@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <functional>
 #include <variant>
+#include <iterator>
 #include <initializer_list>
 #include "prettyprint.hpp"
 
@@ -60,6 +61,7 @@ using impl::vec;
 struct Sequence {
   std::vector<int> data;
   std::vector<int> lengths;
+  Sequence() {}
   Sequence(std::vector<int> d, std::vector<int> l)
     : data{d}, lengths{l} {}
 };
@@ -69,7 +71,7 @@ struct Sequence {
 // Normalise the length of two containers by repeating elements
 // of the smaller container.
 template <typename T>
-constexpr void repeat_elements(T &a, int b) {
+constexpr void repeat_elements(T &a, int final_size) {
   auto gen = [&](const auto& v, int& i) {
     if (i == v.size()) i = 0;
     return v.at(i++);
@@ -82,14 +84,37 @@ constexpr void repeat_elements(T &a, int b) {
     std::generate(v.end()-n, v.end(), g);
   };
 
-  int diff = b - a.size();
+  int diff = final_size - a.size();
 
-  if (diff == 0)
+  if (diff <= 0)
     return;
   else if (diff > 0)
     norm(a, diff);
 }
 
+// Repeat section of a from begin to end, inserting at position end.
+// final_size is final size between begin and end.
+template <typename T>
+constexpr void repeat_elements(T &a, int final_size, int begin, int end) {
+  auto gen = [&](const auto& v, int& i, int begin, int end) {
+    if (i == end) i = begin;
+    return v.at(i++);
+  };
+
+  auto norm = [&](auto& v, int n) {
+    int index{begin};
+    auto g = std::bind(gen, v, index, begin, end);
+    v.insert(v.begin()+end, n, 0);
+    std::generate(v.begin()+end, v.begin()+end+n, g);
+  };
+
+  int diff = final_size - (end-begin);
+
+  if (diff <= 0)
+    return;
+  else if (diff > 0)
+    norm(a, diff);
+}
 
 void clone_elements(Raw_Sequence &s, int n) {
   if (n < 2) return;
@@ -139,6 +164,25 @@ std::vector<int> get_lengths(std::initializer_list<Raw_Sequence> l) {
   return lengths;
 }
 
+std::vector<int> get_lengths(std::initializer_list<Sequence> l) {
+  // Find the longest length vector
+  auto max_length_it = std::max_element(l.begin(), l.end(),
+      [](Sequence a, Sequence b) -> bool { 
+        return (a.lengths.size() < b.lengths.size()); 
+      });
+  int max_length = (*max_length_it).lengths.size();
+
+  std::vector<int> lengths (max_length);
+
+  // Find the longest Raw_Sequence at each level
+  for (const auto& v : l) {
+    for (int i{0}; i < v.lengths.size(); ++i) {
+      if (v.lengths.at(i) > lengths.at(i))
+        lengths.at(i) = v.lengths.at(i);
+    }
+  }
+  return lengths;
+}
 
 void copy_elements(
     std::vector<int>& norm_s, const std::vector<int>& lengths, int order, Raw_Sequence s, int& start_pos) {
@@ -188,6 +232,31 @@ Sequence normalise(Raw_Sequence s, std::vector<int> lengths) {
   return Sequence(norm_s, lengths);
 }
 
+Sequence normalise(Sequence s, std::vector<int> lengths) {
+  int diff = lengths.size() - s.lengths.size();
+  if (diff > 0) {
+    s.lengths.insert(s.lengths.begin(), diff, 1);
+  }
+
+  for (int order{int(lengths.size()-1)}; order >= 0; --order) {
+    const int n = s.data.size();
+    int old_section_length = std::accumulate( 
+      s.lengths.begin() + order, s.lengths.end(), 1, std::multiplies<int>() );
+    int new_section_length = std::accumulate( 
+      lengths.begin() + order, lengths.end(), 1, std::multiplies<int>() );
+    int begin{0}, end{old_section_length};
+
+    if (s.lengths.at(order) < lengths.at(order)) {
+      for (int i{0}; i < n / old_section_length; ++i) {
+        repeat_elements(s.data, new_section_length, begin, end);
+        begin += new_section_length;
+        end += new_section_length;
+      }
+      s.lengths.at(order) = lengths.at(order);
+    }
+  }
+  return s;
+}
 
 // Pass functions using template params for now,
 // maybe change to function_view from here later.
@@ -212,6 +281,12 @@ Sequence transpose_distribute(Raw_Sequence a, Raw_Sequence b, TF&& func) {
   return Sequence(result, lengths);
 }
 
+/* Functions.
+ * For example a function with this signature: my_func := (scalar x, vector y)
+ * will be like
+ * hash_map_order[my_func] = [0,1]
+ *
+ */
 
 /*
 template <typename T, typename... Args>
